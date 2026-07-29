@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 生产力监控大盘 · Nocturne</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0A0B; --surface:#18181B; --panel:rgba(15,15,17,.92);
+    --green:#7CFF6B; --green-dim:#12241A; --green-soft:#4e9e45;
+    --red:#E5484D; --red-dim:#2A1416; --red-t:#FF8A8F;
+    --amber:#F2B84B; --amber-dim:#241E12;
+    --blue:#4C8CFF; --blue-dim:#0f1f38; --violet:#9A6BFF;
+    --border:#2A2A2E; --hair:#232326;
+    --white:#FFFFFF; --t2:#9A9A9E; --t3:#6E6E72; --body:#C7C7CB;
+    --sh-card:0 20px 40px -16px rgba(0,0,0,.7);
+    --sh-panel:0 24px 60px -20px rgba(0,0,0,.8);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  ::selection{background:rgba(124,255,107,.3)}
+  body{font-family:'Inter','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    background:var(--bg);color:var(--body);-webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(#1E1E21 1.2px, transparent 1.2px);background-size:22px 22px;
+    padding:34px 40px 70px;min-width:1180px}
+  .wrap{max-width:1240px;margin:0 auto}
+  .lbl{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t3)}
+
+  /* header + tabs */
+  .topbar{display:flex;align-items:baseline;gap:16px;margin-bottom:22px}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--green)}
+  .topbar h1{font-size:26px;font-weight:700;letter-spacing:-.02em;color:var(--white)}
+  .topbar .date{margin-left:auto;font-size:12.5px;color:var(--t3)}
+  .tabs{display:inline-flex;gap:6px;background:var(--surface);border:1px solid var(--border);
+    border-radius:999px;padding:6px;margin-bottom:26px;box-shadow:var(--sh-card)}
+  .tab{font-size:13px;font-weight:600;color:var(--t2);padding:9px 18px;border-radius:999px;cursor:pointer;transition:.15s}
+  .tab:hover{color:var(--white);background:#232326}
+  .tab.on{background:var(--green);color:#0A0A0B}
+
+  .view{display:none;animation:fade .25s ease}
+  .view.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+  .panel{background:var(--panel);backdrop-filter:blur(20px);border:1px solid var(--border);
+    border-radius:20px;box-shadow:var(--sh-panel)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--sh-card)}
+  .grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:20px}
+  .phead{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 6px}
+  .phead h2{font-size:15px;font-weight:600;color:var(--white)}
+  .phead .tools{color:var(--t3);font-size:14px;letter-spacing:4px}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+  .kpi{padding:18px 20px}
+  .kpi .k{font-size:12.5px;color:var(--t3)}
+  .kpi .v{font-size:30px;font-weight:800;letter-spacing:-1px;margin-top:8px;color:var(--white)}
+  .kpi.p .v{color:var(--green)} .kpi.b .v{color:var(--blue)} .kpi.a .v{color:var(--amber)}
+
+  /* leaderboard */
+  .section-t{font-size:12.5px;font-weight:600;color:var(--white);padding:15px 24px;border-top:1px solid var(--hair);display:flex;align-items:center;gap:8px}
+  .section-t .dot{width:8px;height:8px;border-radius:3px}
+  .podium{display:flex;justify-content:center;align-items:flex-end;gap:30px;padding:24px 0 30px}
+  .pod{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .pod .av{border-radius:50%;display:grid;place-items:center;font-weight:700;border:2px solid var(--surface)}
+  .pod.first .av{width:64px;height:64px;font-size:22px;background:var(--green-dim);color:var(--green);box-shadow:0 4px 16px rgba(124,255,107,.25)}
+  .pod.s2 .av{width:50px;height:50px;font-size:17px;background:var(--blue-dim);color:var(--blue)}
+  .pod.s3 .av{width:50px;height:50px;font-size:17px;background:var(--amber-dim);color:var(--amber)}
+  .pod .medal{font-size:19px} .pod .nm{font-weight:700;font-size:14px;color:var(--white)} .pod .sc{font-size:12px;color:var(--t2)}
+  .row{display:grid;grid-template-columns:30px 38px 1fr 260px 150px;gap:14px;align-items:center;padding:12px 24px;border-top:1px solid var(--hair)}
+  .row .rk{font-size:14px;font-weight:700;color:var(--t3);text-align:center}
+  .row .av{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-weight:600;font-size:14px}
+  .row .who .n{font-size:14px;font-weight:700;color:var(--white)} .row .who .r{font-size:11.5px;color:var(--t3);margin-top:1px}
+  .row .lev{font-size:12.5px;color:var(--body)} .row .lev b{color:var(--white);font-weight:700}
+  .row .lev .l2{font-size:11.5px;color:var(--t3);margin-top:2px}
+  .row .sc{display:flex;align-items:center;gap:8px} .row .sc .s{font-size:20px;font-weight:800;color:var(--white)} .row .sc .t{font-size:11.5px;font-weight:600}
+  .row .track{height:6px;background:#2A2A2E;border-radius:4px;margin-top:5px;overflow:hidden} .row .fill{height:100%;border-radius:4px}
+  .up{color:var(--green)} .down{color:var(--red-t)}
+  .mid .av{background:var(--blue-dim);color:var(--blue)} .mid .fill{background:var(--blue)}
+  .low .av{background:var(--amber-dim);color:var(--amber)} .low .fill{background:var(--amber)}
+  .pager{display:flex;gap:6px;justify-content:flex-end;padding:14px 24px}
+  .pager span{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;color:var(--t2);border:1px solid var(--border);cursor:pointer}
+  .pager span.on{background:var(--green);color:#0A0A0B;border-color:var(--green)}
+
+  /* water level */
+  .subtabs{display:flex;gap:6px}
+  .subtab{font-size:12px;font-weight:600;color:var(--t2);padding:6px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--border)}
+  .subtab.on{background:var(--green-dim);color:var(--green);border-color:#274a2c}
+  .pill{font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px}
+  .pill.flood{background:var(--red-dim);color:var(--red-t)} .pill.safe{background:var(--green-dim);color:var(--green)}
+  .chart-legend{display:flex;gap:16px;font-size:11.5px;color:var(--t2);padding:0 24px 20px}
+  .chart-legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .dashp{border-top:2px dashed var(--red)}
+
+  .gauge-wrap{padding:22px 24px}
+  .gauge{display:flex;align-items:center;gap:22px;margin-bottom:6px}
+  .g-center .big{font-size:26px;font-weight:800;color:var(--white)} .g-center .cap{font-size:12px;color:var(--t3)}
+  .sla .r{display:flex;justify-content:space-between;padding:11px 0;font-size:13px;border-top:1px solid var(--hair)}
+  .sla .r .k{color:var(--t3)} .sla .r .v{font-weight:700;color:var(--white)}
+
+  /* funnel */
+  .funnel{display:flex;flex-direction:column;align-items:center;gap:4px;padding:32px 0}
+  .fstage{font-weight:700;text-align:center;padding:16px 0;position:relative;border-radius:4px}
+  .fstage .lab{font-size:13px} .fstage .num{font-size:18px;margin-top:2px}
+  .fstage .conv{position:absolute;right:-92px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--t2);font-weight:600}
+  .funnel-foot{text-align:center;font-size:13px;color:var(--t2);margin-top:12px}
+  .funnel-foot b{color:var(--green);font-size:16px}
+
+  /* ROI lever */
+  .lever-wrap{position:relative;height:300px;margin:4px 20px}
+  .beam{position:absolute;top:96px;left:50%;width:560px;height:8px;margin-left:-280px;background:linear-gradient(90deg,#3a3a40,#5a5a62,#3a3a40);border-radius:6px;transform:rotate(6.5deg);transform-origin:center}
+  .fulcrum{position:absolute;top:104px;left:50%;margin-left:-28px;width:0;height:0;border-left:28px solid transparent;border-right:28px solid transparent;border-bottom:78px solid #202027}
+  .fulcrum-lbl{position:absolute;top:120px;left:50%;margin-left:-40px;width:80px;text-align:center;font-size:10.5px;font-weight:700;color:var(--green)}
+  .fulcrum-lbl small{display:block;color:var(--t3);font-weight:500;font-size:9px;margin-top:2px}
+  .pan{position:absolute;width:190px;border-radius:16px;padding:15px 16px;text-align:center}
+  .pan .cap{font-size:11px;font-weight:700;letter-spacing:.05em} .pan .amt{font-size:26px;font-weight:700;color:var(--white);margin:5px 0 3px} .pan .note{font-size:11px;color:var(--t2)}
+  .pan-in{left:calc(50% - 290px);top:34px;background:var(--surface);border:1px solid var(--border)} .pan-in .cap{color:var(--t2)}
+  .pan-out{left:calc(50% + 100px);top:130px;background:linear-gradient(160deg,#14241a,#101614);border:1px solid #2f5a33} .pan-out .cap{color:var(--green)}
+  .lev-badge{position:absolute;top:212px;left:50%;transform:translateX(-50%);text-align:center}
+  .lev-badge .x{font-size:38px;font-weight:800;color:var(--green);line-height:1} .lev-badge .t{font-size:11px;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+  .readhint{text-align:center;font-size:11.5px;color:var(--t3);padding:6px 24px 20px}
+
+  /* DORA */
+  .dora-head{padding:22px 24px 6px}
+  .dora-head .tier{font-size:34px;font-weight:800;color:var(--green);letter-spacing:-.5px;margin-top:6px}
+  .dora-head .desc{font-size:12.5px;color:var(--t2);margin-top:8px;max-width:660px;line-height:1.55}
+  .dora-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:12px 24px 4px}
+  .dtile{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:var(--surface)}
+  .dtile .k{font-size:11.5px;color:var(--t3)} .dtile .v{font-size:25px;font-weight:800;margin-top:6px;color:var(--white)}
+  .dtile .badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:var(--green-dim);color:var(--green);margin-left:6px;vertical-align:middle}
+  .dtile .d{font-size:11px;color:var(--t3);margin-top:5px;line-height:1.4}
+  .checkup{padding:6px 24px 8px}
+  .checkup .r{font-size:12.5px;line-height:1.6;margin-bottom:8px;color:var(--t2)} .checkup .r b{color:var(--white)}
+  .slider{margin:6px 24px 8px;position:relative;height:44px}
+  .slider .track{height:6px;border-radius:4px;background:linear-gradient(90deg,#2A2A2E,#2f5a33,var(--green),var(--violet));margin-top:8px}
+  .slider .ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-top:8px}
+  .slider .knob{position:absolute;top:2px;left:70%;width:18px;height:18px;border-radius:50%;background:var(--surface);border:3px solid var(--green);box-shadow:0 2px 8px rgba(0,0,0,.5)}
+
+  /* cost */
+  .cost{display:grid;grid-template-columns:300px 1fr;gap:34px;padding:26px;align-items:center}
+  .donut{position:relative;width:240px;height:240px;border-radius:50%;margin:0 auto}
+  .donut::after{content:"";position:absolute;inset:52px;background:var(--surface);border-radius:50%}
+  .donut .ctr{position:absolute;inset:0;display:grid;place-items:center;z-index:2;text-align:center}
+  .donut .ctr .t{font-size:11px;color:var(--t3)} .donut .ctr .v{font-size:23px;font-weight:800;color:var(--white);letter-spacing:-.5px}
+  .clist .cr{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px;border-top:1px solid var(--hair)}
+  .clist .cr:first-child{border-top:none}
+  .clist .cd{width:10px;height:10px;border-radius:3px;flex-shrink:0} .clist .cn{flex:1;color:var(--body)} .clist .cp{color:var(--t3);width:44px;text-align:right} .clist .cv{font-weight:700;color:var(--white);width:100px;text-align:right}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div><div class="eyebrow">Productivity Ops</div><h1>AI 生产力监控大盘</h1></div>
+    <div class="date">研发团队 · 2026 Q2 · 更新于 07-28</div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-v="talent">人力排行榜</div>
+    <div class="tab" data-v="water">流量水位</div>
+    <div class="tab" data-v="funnel">转化漏斗</div>
+    <div class="tab" data-v="roi">投入产出</div>
+    <div class="tab" data-v="dora">组织交付力</div>
+    <div class="tab" data-v="cost">成本分布</div>
+  </div>
+
+  <!-- 1. TALENT -->
+  <div class="view on" id="v-talent">
+    <div class="kpis">
+      <div class="kpi card"><div class="k">AI 潜力均分</div><div class="v">66</div></div>
+      <div class="kpi card p"><div class="k">AI 先锋</div><div class="v">3</div></div>
+      <div class="kpi card b"><div class="k">中潜力层</div><div class="v">11</div></div>
+      <div class="kpi card a"><div class="k">低潜力层</div><div class="v">3</div></div>
+    </div>
+    <div class="panel">
+      <div class="section-t" style="border-top:none"><span class="dot" style="background:var(--green)"></span>AI 先锋 · 前三名</div>
+      <div class="podium">
+        <div class="pod s2"><div class="medal">🥈</div><div class="av">张</div><div class="nm">张伟</div><div class="sc">88 分</div></div>
+        <div class="pod first"><div class="medal">🥇</div><div class="av">李</div><div class="nm">李娜</div><div class="sc">92 分</div></div>
+        <div class="pod s3"><div class="medal">🥉</div><div class="av">王</div><div class="nm">王芳</div><div class="sc">81 分</div></div>
+      </div>
+      <div class="section-t"><span class="dot" style="background:var(--blue)"></span>中潜力层 · 11 人</div>
+      <div class="row mid"><div class="rk">10</div><div class="av">马</div><div class="who"><div class="n">马丽</div><div class="r">前端</div></div><div class="lev"><div>采纳 <b>53%</b> · AI 占比 <b>43%</b></div><div class="l2">委派 17/月 · 提效 1.7×</div></div><div><div class="sc"><span class="s">62</span><span class="t up">↗ 6%</span></div><div class="track"><div class="fill" style="width:62%"></div></div></div></div>
+      <div class="row mid"><div class="rk">11</div><div class="av">朱</div><div class="who"><div class="n">朱军</div><div class="r">后端</div></div><div class="lev"><div>采纳 <b>51%</b> · AI 占比 <b>42%</b></div><div class="l2">委派 17/月 · 提效 1.7×</div></div><div><div class="sc"><span class="s">60</span><span class="t down">↘ 1%</span></div><div class="track"><div class="fill" style="width:60%"></div></div></div></div>
+      <div class="row mid"><div class="rk">12</div><div class="av">胡</div><div class="who"><div class="n">胡伟</div><div class="r">全栈</div></div><div class="lev"><div>采纳 <b>49%</b> · AI 占比 <b>40%</b></div><div class="l2">委派 16/月 · 提效 1.6×</div></div><div><div class="sc"><span class="s">57</span><span class="t up">↗ 2%</span></div><div class="track"><div class="fill" style="width:57%"></div></div></div></div>
+      <div class="pager"><span>1</span><span>2</span><span class="on">3</span><span>4</span></div>
+      <div class="section-t"><span class="dot" style="background:var(--amber)"></span>低潜力层 · 最后 3 名</div>
+      <div class="row low"><div class="rk">15</div><div class="av">陈</div><div class="who"><div class="n">陈强</div><div class="r">后端</div></div><div class="lev"><div>采纳 <b>41%</b> · AI 占比 <b>34%</b></div><div class="l2">委派 13/月 · 提效 1.5×</div></div><div><div class="sc"><span class="s">48</span><span class="t up">↗ 3%</span></div><div class="track"><div class="fill" style="width:48%"></div></div></div></div>
+      <div class="row low"><div class="rk">16</div><div class="av">赵</div><div class="who"><div class="n">赵敏</div><div class="r">前端</div></div><div class="lev"><div>采纳 <b>37%</b> · AI 占比 <b>31%</b></div><div class="l2">委派 15/月 · 提效 1.4×</div></div><div><div class="sc"><span class="s">44</span><span class="t down">↘ 2%</span></div><div class="track"><div class="fill" style="width:44%"></div></div></div></div>
+      <div class="row low"><div class="rk">17</div><div class="av">周</div><div class="who"><div class="n">周婷</div><div class="r">测试</div></div><div class="lev"><div>采纳 <b>33%</b> · AI 占比 <b>27%</b></div><div class="l2">委派 16/月 · 提效 1.4×</div></div><div><div class="sc"><span class="s">39</span><span class="t up">↗ 1%</span></div><div class="track"><div class="fill" style="width:39%"></div></div></div></div>
+    </div>
+  </div>
+
+  <!-- 2. WATER -->
+  <div class="view" id="v-water">
+    <div class="grid2">
+      <div class="panel">
+        <div class="phead">
+          <div class="subtabs" id="wtabs">
+            <div class="subtab on" data-m="token">Token</div><div class="subtab" data-m="conc">并发</div>
+            <div class="subtab" data-m="rpm">RPM</div><div class="subtab" data-m="tpm">TPM</div>
+          </div>
+          <div id="wstatus"></div>
+        </div>
+        <div id="wchart" style="padding:8px 14px"></div>
+        <div class="chart-legend">
+          <span><i class="dashp"></i>预警水位线</span><span><i style="background:var(--green)"></i>当前水位</span>
+          <span><i style="background:var(--red)"></i>红区·洪水位</span><span><i style="background:#2A2A2E"></i>安全区</span>
+        </div>
+      </div>
+      <div class="panel gauge-wrap">
+        <div class="phead" style="padding:0 0 16px"><h2>任务成功率</h2></div>
+        <div class="gauge">
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#2A2A2E" stroke-width="12"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#7CFF6B" stroke-width="12" stroke-linecap="round" stroke-dasharray="314.2" stroke-dashoffset="1.9" transform="rotate(-90 60 60)"/>
+          </svg>
+          <div class="g-center"><div class="big">99.4%</div><div class="cap">任务成功率</div></div>
+        </div>
+        <div class="sla">
+          <div class="r"><span class="k">可用率</span><span class="v">99.96%</span></div>
+          <div class="r"><span class="k">P95 响应</span><span class="v">820ms</span></div>
+          <div class="r"><span class="k">错误率</span><span class="v" style="color:var(--amber)">0.42%</span></div>
+          <div class="r"><span class="k">SLA 达成</span><span class="v">99.2%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. FUNNEL -->
+  <div class="view" id="v-funnel">
+    <div class="panel">
+      <div class="phead"><h2>SDLC / 科研转化漏斗</h2><span class="lbl">近 7 日</span></div>
+      <div class="funnel">
+        <div class="fstage" style="width:70%;background:#1e3a24;color:#a6ff9a"><div class="lab">提问</div><div class="num">1,000</div></div>
+        <div class="fstage" style="width:56%;background:#2f5a33;color:#c8ffbe"><div class="lab">采纳</div><div class="num">720</div><span class="conv">72%</span></div>
+        <div class="fstage" style="width:44%;background:#4e9e45;color:#0A0A0B"><div class="lab">生成 PR</div><div class="num">590</div><span class="conv">82%</span></div>
+        <div class="fstage" style="width:34%;background:#7CFF6B;color:#0A0A0B"><div class="lab">合入主干</div><div class="num">450</div><span class="conv">77%</span></div>
+      </div>
+      <div class="funnel-foot">提问 → 合入主干 · 总转化率 <b>45%</b></div>
+    </div>
+  </div>
+
+  <!-- 4. ROI -->
+  <div class="view" id="v-roi">
+    <div class="panel">
+      <div class="phead"><h2>投入产出杠杆</h2><div class="tools">✎ ⤢ ▤</div></div>
+      <div class="readhint" style="text-align:left;padding:2px 24px 4px">支点为 AI 赋能，¥86K token 投入撬动 124 万行留存代码 —— 每 ¥1 token 产出 14.4 行留存代码</div>
+      <div class="lever-wrap">
+        <div class="pan pan-in"><div class="cap">Invest</div><div class="amt">¥86K</div><div class="note">Token 消耗金额</div></div>
+        <div class="pan pan-out"><div class="cap">Return</div><div class="amt">124<span style="font-size:15px;font-weight:600;color:var(--t2)">万行</span></div><div class="note">最终留存代码行数</div></div>
+        <div class="beam"></div><div class="fulcrum"></div>
+        <div class="fulcrum-lbl">AI 赋能<small>FULCRUM</small></div>
+        <div class="lev-badge"><div class="x">14.4<span style="font-size:15px;margin-left:2px">行/元</span></div><div class="t">留存 / 投入</div></div>
+      </div>
+      <div class="readhint">横梁向 Return 侧倾斜，倾角越大 → 每元 token 留存的代码行数越高</div>
+    </div>
+  </div>
+
+  <!-- 5. DORA -->
+  <div class="view" id="v-dora">
+    <div class="panel">
+      <div class="dora-head">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div><span class="lbl">AI 组织交付力衡量 · DORA</span><div class="tier">High 梯队</div></div>
+          <span class="up" style="font-size:13px;font-weight:600">↑ 半年持续改善</span>
+        </div>
+        <div class="desc">又快又稳，AI 提效为正。短板：故障恢复(MTTR)与端到端成功率拉低整体档位 —— 距 Elite 一步之遥。</div>
+      </div>
+      <div class="dora-grid">
+        <div class="dtile"><div class="k">交付速度 · 首置时间</div><div class="v">6h<span class="badge">ELITE</span></div><div class="d">vs 去年 3 天</div></div>
+        <div class="dtile"><div class="k">交付稳定 · 变更失败率</div><div class="v">4%<span class="badge">ELITE</span></div><div class="d">回滚 / 热修比例</div></div>
+        <div class="dtile"><div class="k">AI 交付力占比</div><div class="v">42%</div><div class="d">↑8× · AI 参与的合入占比</div></div>
+        <div class="dtile"><div class="k">AI 提效</div><div class="v up">+28%</div><div class="d">交付吞吐 +3.9h/月</div></div>
+      </div>
+      <div class="dora-grid">
+        <div class="dtile"><div class="k">单位交付 ROI</div><div class="v">4.2×</div><div class="d">token 成本 vs 节省工时价值</div></div>
+        <div class="dtile"><div class="k">端到端任务成功率</div><div class="v">84%</div><div class="d">委派到合入的完成率</div></div>
+        <div class="dtile"><div class="k">全托管率</div><div class="v">31%</div><div class="d">Agent 全程自主、无人介入</div></div>
+        <div class="dtile"><div class="k">迭代队占比</div><div class="v">14%</div><div class="d">AI 生成后偏改</div></div>
+      </div>
+      <div class="checkup">
+        <div class="section-t" style="padding:16px 0 10px">AI+ 交付力体检</div>
+        <div class="r"><b>速度：</b>AI 驱动首置时间半年 -98%，部署频率 +40%，交付节奏显著加快。</div>
+        <div class="r"><b>稳定性：</b>AI 测试补全失败率 5% vs 人工 3% —— 略高，需持续观察归因。</div>
+        <div class="r"><b>成本：</b>token 月支出攒下每工日均价值(ROI 4.2×)，投入产出为正。</div>
+        <div class="r"><b>新瓶颈：</b>评审响应对比 +22% —— AI 供给 > 人评审产能，人成为新约束。</div>
+      </div>
+      <div class="slider"><div class="track"></div><div class="knob"></div><div class="ticks"><span>Low</span><span>Medium</span><span>High</span><span>Elite</span></div></div>
+    </div>
+  </div>
+
+  <!-- 6. COST -->
+  <div class="view" id="v-cost">
+    <div class="panel">
+      <div class="phead"><h2>成本分布 · 来源</h2><span class="lbl">2026-05-27 → 06-26</span></div>
+      <div class="cost">
+        <div class="donut" id="donut"><div class="ctr"><div><div class="t">总成本</div><div class="v">$3,899,843</div></div></div></div>
+        <div class="clist" id="clist"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.querySelectorAll('#tabs .tab').forEach(t=>{t.onclick=()=>{
+  document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on'); document.getElementById('v-'+t.dataset.v).classList.add('on');
+};});
+
+const WDATA={
+  token:{data:[72,74,78,76,82,85,88,92],warn:80,cur:92,flood:true},
+  conc :{data:[55,60,58,64,62,68,66,70],warn:75,cur:70,flood:false},
+  rpm  :{data:[70,82,80,86,88,90,86,98],warn:85,cur:98,flood:true},
+  tpm  :{data:[48,55,52,60,58,64,56,60],warn:85,cur:60,flood:false},
+};
+function renderWater(key){
+  const c=WDATA[key],W=580,H=250,x0=46,x1=560,y0=20,y1=210,lo=40,hi=100;
+  const xs=i=>x0+i/(c.data.length-1)*(x1-x0), ys=v=>y1-(v-lo)/(hi-lo)*(y1-y0);
+  const pts=c.data.map((v,i)=>[xs(i),ys(v)]);
+  const line=pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const grid=[40,60,80,100].map(v=>`<line x1="${x0}" y1="${ys(v)}" x2="${x1}" y2="${ys(v)}" stroke="#232326"/><text x="${x0-8}" y="${ys(v)+3}" text-anchor="end" font-size="10" fill="#6E6E72">${v}%</text>`).join('');
+  const col=c.flood?'#E5484D':'#7CFF6B';
+  const dots=pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="${i===pts.length-1?4.5:2.6}" fill="${i===pts.length-1?col:'#7CFF6B'}"/>`).join('');
+  document.getElementById('wchart').innerHTML=`<svg width="100%" viewBox="0 0 ${W} ${H}">
+    <rect x="${x0}" y="${y0}" width="${x1-x0}" height="${ys(90)-y0}" fill="rgba(229,72,77,.12)"/>
+    <rect x="${x0}" y="${ys(90)}" width="${x1-x0}" height="${y1-ys(90)}" fill="rgba(255,255,255,.02)"/>
+    ${grid}
+    <polygon points="${x0},${y1} ${line} ${x1},${y1}" fill="rgba(124,255,107,.08)"/>
+    <line x1="${x0}" y1="${ys(c.warn)}" x2="${x1}" y2="${ys(c.warn)}" stroke="#E5484D" stroke-width="1.5" stroke-dasharray="5,4"/>
+    <text x="${x1}" y="${ys(c.warn)-6}" text-anchor="end" font-size="10" fill="#FF8A8F" font-weight="600">预警 ${c.warn}%</text>
+    <polyline points="${line}" fill="none" stroke="#7CFF6B" stroke-width="2.2"/>${dots}
+    <text x="${pts[pts.length-1][0]-6}" y="${pts[pts.length-1][1]-10}" text-anchor="end" font-size="13" font-weight="700" fill="${col}">${c.cur}%</text>
+  </svg>`;
+  document.getElementById('wstatus').innerHTML=`<span class="pill ${c.flood?'flood':'safe'}">当前 ${c.cur}% · ${c.flood?'洪水位':'安全'}</span>`;
+}
+document.querySelectorAll('#wtabs .subtab').forEach(s=>{s.onclick=()=>{
+  document.querySelectorAll('#wtabs .subtab').forEach(x=>x.classList.remove('on'));
+  s.classList.add('on'); renderWater(s.dataset.m);
+};});
+renderWater('token');
+
+const COST=[['个人','#7CFF6B',33,'$1,274,336'],['Claude Code','#4C8CFF',31,'$1,238,335'],['InfCode','#9A6BFF',23,'$899,986'],['OpenCode','#22c1c3',8,'$311,987'],['Codex','#F2B84B',2,'$78,000'],['DeepMap','#4e9e45',2,'$78,000'],['其他 4 项','#3a3a40',1,'$19,199']];
+let acc=0; const segs=COST.map(c=>{const a=acc;acc+=c[2];return `${c[1]} ${a}% ${acc}%`;}).join(', ');
+document.getElementById('donut').style.background=`conic-gradient(${segs})`;
+document.getElementById('clist').innerHTML=COST.map(c=>`<div class="cr"><span class="cd" style="background:${c[1]}"></span><span class="cn">${c[0]}</span><span class="cp">${c[2]}%</span><span class="cv">${c[3]}</span></div>`).join('');
+</script>
+</body>
+</html>
