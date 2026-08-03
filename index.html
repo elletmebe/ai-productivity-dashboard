@@ -3,382 +3,1044 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 生产力监控大盘 · Nocturne</title>
+<title>AI 生产力监控大盘 · 遥测台</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#0A0A0B; --surface:#18181B; --panel:rgba(15,15,17,.92);
-    --green:#7CFF6B; --green-dim:#12241A; --green-soft:#4e9e45;
-    --red:#E5484D; --red-dim:#2A1416; --red-t:#FF8A8F;
-    --amber:#F2B84B; --amber-dim:#241E12;
-    --blue:#4C8CFF; --blue-dim:#0f1f38; --violet:#9A6BFF;
-    --border:#2A2A2E; --hair:#232326;
-    --white:#FFFFFF; --t2:#9A9A9E; --t3:#6E6E72; --body:#C7C7CB;
-    --sh-card:0 20px 40px -16px rgba(0,0,0,.7);
-    --sh-panel:0 24px 60px -20px rgba(0,0,0,.8);
+/* ═══════════════════════════════════════════════════════════════
+   TOKENS
+   Data colors validated with dataviz/scripts/validate_palette.js
+   against surface #141926, --mode dark.
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  color-scheme:dark;
+
+  /* surfaces — blue-graphite, lit from above */
+  --void:#080A11; --deck:#0F1320; --rise:#141926; --ridge:#1B2133;
+  --edge:rgba(255,255,255,.07); --edge-lit:rgba(255,255,255,.13);
+
+  /* ink */
+  --ink:#F2F4FA; --ink2:#98A1B8; --ink3:#626C85; --ink4:#414A63;
+
+  /* categorical — 4 slots, all checks PASS */
+  --c1:#C48012; --c2:#6B7BF0; --c3:#1EA396; --c4:#A85FE8;
+  --c-rest:#414A63;                       /* de-emphasis, always direct-labelled */
+
+  /* ordinal indigo ramp — monotone L, gaps ≥.06, light end 2.00:1 */
+  --o1:#B3BEFF; --o2:#8C9DFF; --o3:#6B7BF0; --o4:#4653B0; --o5:#39448F;
+
+  /* ui chrome (not data) */
+  --accent:#8C9DFF; --accent-wash:rgba(140,157,255,.13); --accent-line:rgba(140,157,255,.32);
+  --amber-wash:rgba(196,128,18,.13); --amber-line:rgba(196,128,18,.38);
+
+  /* status — fixed palette, never themed, always with icon+label */
+  --good:#0CA30C; --warn:#FAB219; --crit:#D03B3B;
+
+  --r-lg:18px; --r-md:12px; --r-sm:8px;
+  --shadow:0 24px 60px -24px rgba(0,0,0,.9);
+  --sans:'IBM Plex Sans','PingFang SC','Noto Sans SC','Microsoft YaHei',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+::selection{background:rgba(140,157,255,.3);color:#fff}
+
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans);
+  background:var(--void);
+  color:var(--ink2);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.5;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+/* ambient: one soft indigo bloom + a fine instrument grid. Quiet. */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(900px 460px at 50% -12%,rgba(107,123,240,.16),transparent 70%),
+    radial-gradient(700px 420px at 88% 8%,rgba(196,128,18,.06),transparent 70%),
+    linear-gradient(rgba(255,255,255,.017) 1px,transparent 1px) 0 0/100% 64px,
+    linear-gradient(90deg,rgba(255,255,255,.017) 1px,transparent 1px) 0 0/64px 100%;
+}
+
+/* ═══ SIGNATURE: token ribbon ═══════════════════════════════════
+   Discrete variable-width blocks — the atomic unit everything here
+   is denominated in. Animated once, at the top, and nowhere else. */
+.ribbon{
+  position:relative;z-index:1;height:16px;overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent),linear-gradient(180deg,#000 30%,transparent);
+          mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent),linear-gradient(180deg,#000 30%,transparent);
+  -webkit-mask-composite:source-in; mask-composite:intersect;
+}
+.ribbon-track{display:flex;gap:3px;height:100%;width:max-content;animation:drift 110s linear infinite}
+.ribbon-track i{display:block;height:100%;border-radius:1px;background:var(--ink4);opacity:.5}
+.ribbon-track i.lit{background:var(--accent);opacity:.5}
+.ribbon-track i.hot{background:var(--c1);opacity:.45}
+@keyframes drift{to{transform:translateX(-50%)}}
+
+.wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:26px 32px 80px}
+
+/* ═══ HEADER ═══ */
+.masthead{display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap;margin:26px 0 24px}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--ink3);margin-bottom:9px;
+}
+.eyebrow span{color:var(--accent)}
+h1{
+  font-size:clamp(26px,3.6vw,38px);font-weight:600;letter-spacing:-.025em;
+  color:var(--ink);line-height:1.1;
+}
+.meta{margin-left:auto;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.live{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.live .beacon{
+  width:7px;height:7px;border-radius:50%;background:var(--good);flex-shrink:0;
+  box-shadow:0 0 0 0 rgba(12,163,12,.55);animation:ping 2.4s ease-out infinite;
+}
+@keyframes ping{70%,100%{box-shadow:0 0 0 7px rgba(12,163,12,0)}}
+.scope{font-family:var(--mono);font-size:12px;color:var(--ink3);text-align:right;line-height:1.55}
+.scope b{color:var(--ink2);font-weight:500}
+
+/* ═══ TABS ═══ */
+.tabs{
+  position:relative;display:inline-flex;gap:2px;background:rgba(20,25,38,.7);
+  border:1px solid var(--edge);border-radius:999px;padding:5px;margin-bottom:22px;
+  backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  max-width:100%;overflow-x:auto;scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab-glide{
+  position:absolute;top:5px;height:calc(100% - 10px);border-radius:999px;
+  background:var(--accent-wash);border:1px solid var(--accent-line);
+  transition:transform .34s cubic-bezier(.4,.9,.2,1),width .34s cubic-bezier(.4,.9,.2,1);
+  pointer-events:none;
+}
+.tab{
+  position:relative;z-index:1;font:inherit;font-size:13.5px;font-weight:500;
+  color:var(--ink2);background:none;border:0;padding:9px 20px;border-radius:999px;
+  cursor:pointer;white-space:nowrap;transition:color .2s;
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);font-weight:600}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.view{display:none}
+.view.on{display:block;animation:rise .4s cubic-bezier(.2,.7,.3,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+
+/* ═══ PANELS ═══ */
+.panel{
+  background:linear-gradient(180deg,rgba(21,26,42,.78),rgba(13,17,28,.82));
+  backdrop-filter:blur(24px);border:1px solid var(--edge);border-radius:var(--r-lg);
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.055);
+  overflow:hidden;
+}
+.phead{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px 14px;flex-wrap:wrap}
+.phead h2{font-size:15px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.phead .sub{font-size:12.5px;color:var(--ink3);margin-top:3px}
+.tag{
+  font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink3);
+}
+.grid2{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+
+.band{
+  display:flex;align-items:center;gap:10px;padding:14px 24px;
+  border-top:1px solid var(--edge);font-size:13px;font-weight:600;color:var(--ink);
+}
+.band .chip{
+  width:6px;height:16px;border-radius:2px;flex-shrink:0;
+}
+.band .n{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--ink3);margin-left:auto}
+
+/* ═══ TOKEN-BLOCK FILL — the signature, used only where it's true ═══
+   Discrete blocks belong on the THIN meters, where "counted in
+   units" is the honest reading and the mark is one flat colour.
+   Deliberately NOT on the funnel or the composition bar: at that
+   size the texture overpowers the ordinal ramp and the segment
+   colours stop being tellable apart. A mask also clips descendants,
+   so this never goes on a box that carries a label. */
+.blocks{
+  -webkit-mask-image:repeating-linear-gradient(90deg,#000 0 7px,transparent 7px 9px);
+          mask-image:repeating-linear-gradient(90deg,#000 0 7px,transparent 7px 9px);
+}
+
+/* ═══ KPI ═══ */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{
+  background:linear-gradient(180deg,rgba(21,26,42,.7),rgba(13,17,28,.75));
+  border:1px solid var(--edge);border-radius:var(--r-md);padding:17px 18px 15px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  transition:border-color .25s,transform .25s;
+}
+.kpi:hover{border-color:var(--edge-lit);transform:translateY(-2px)}
+.kpi .k{font-size:12.5px;color:var(--ink3);display:flex;align-items:center;gap:7px}
+.kpi .k .chip{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.kpi .fig{display:flex;align-items:baseline;gap:8px;margin:10px 0 13px}
+.kpi .v{font-family:var(--mono);font-size:34px;font-weight:500;letter-spacing:-.035em;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums}
+.kpi .u{font-size:12.5px;color:var(--ink3)}
+.kpi .d{font-family:var(--mono);font-size:11.5px;font-weight:500;margin-left:auto}
+.kpi .bar{height:5px;border-radius:2px;background:var(--ridge);overflow:hidden}
+.kpi .bar i{display:block;height:100%;border-radius:2px}
+.up{color:var(--good)} .down{color:var(--crit)}
+
+/* ═══ PODIUM ═══ */
+.podium{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:6px 24px 22px;align-items:end}
+.pod{
+  position:relative;background:var(--rise);border:1px solid var(--edge);
+  border-radius:var(--r-md);padding:20px 18px 18px;text-align:center;overflow:hidden;
+  transition:transform .3s cubic-bezier(.2,.7,.3,1),border-color .3s;
+}
+.pod:hover{transform:translateY(-3px);border-color:var(--edge-lit)}
+.pod .ghost{
+  position:absolute;top:-10px;right:6px;font-family:var(--mono);font-size:74px;
+  font-weight:600;color:rgba(255,255,255,.035);line-height:1;pointer-events:none;
+}
+.pod .ring{position:relative;width:74px;height:74px;margin:0 auto 13px}
+.pod .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.pod .ring .face{
+  position:absolute;inset:9px;border-radius:50%;background:var(--ridge);
+  display:grid;place-items:center;font-size:19px;font-weight:600;color:var(--ink);
+}
+.pod .nm{font-size:16px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.pod .rl{font-size:12px;color:var(--ink3);margin-top:3px}
+.pod .sc{
+  font-family:var(--mono);font-size:26px;font-weight:500;color:var(--ink);
+  margin-top:12px;letter-spacing:-.03em;font-variant-numeric:tabular-nums;
+}
+.pod .sc small{font-size:11.5px;color:var(--ink3);margin-left:3px;letter-spacing:0}
+.pod.gold{
+  background:linear-gradient(180deg,rgba(196,128,18,.11),var(--rise) 62%);
+  border-color:var(--amber-line);transform:translateY(-14px);
+}
+.pod.gold:hover{transform:translateY(-17px)}
+.pod.gold::after{
+  content:"";position:absolute;inset:-40% 20% auto;height:70%;
+  background:radial-gradient(50% 60% at 50% 0,rgba(196,128,18,.3),transparent 70%);
+  pointer-events:none;
+}
+.pod .lead{
+  display:inline-block;font-family:var(--mono);font-size:10px;font-weight:500;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--c1);
+  border:1px solid var(--amber-line);border-radius:999px;padding:3px 10px;margin-bottom:13px;
+}
+
+/* ═══ ROSTER ROWS ═══ */
+.row{
+  display:grid;grid-template-columns:34px 36px minmax(96px,1fr) minmax(180px,1.5fr) 152px;
+  gap:14px;align-items:center;padding:12px 24px;border-top:1px solid var(--edge);
+  position:relative;transition:background .18s;
+}
+.row::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--accent);opacity:0;transition:opacity .18s;
+}
+.row:hover{background:rgba(255,255,255,.024)}
+.row:hover::before{opacity:1}
+.row .rk{font-family:var(--mono);font-size:13px;color:var(--ink3);text-align:center;font-variant-numeric:tabular-nums}
+.row .av{
+  width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  font-size:14px;font-weight:600;border:1px solid var(--edge);
+}
+.row .n{font-size:14px;font-weight:600;color:var(--ink)}
+.row .r{font-size:11.5px;color:var(--ink3);margin-top:2px}
+.row .lev{font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.row .lev b{font-family:var(--mono);font-weight:500;color:var(--ink)}
+.row .lev .l2{font-size:11.5px;color:var(--ink3);margin-top:3px}
+.row .stat{display:flex;align-items:baseline;gap:9px}
+.row .s{font-family:var(--mono);font-size:19px;font-weight:500;color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.row .t{font-family:var(--mono);font-size:11px;font-weight:500;margin-left:auto;white-space:nowrap}
+.row .track{height:5px;background:var(--ridge);border-radius:2px;margin-top:6px;overflow:hidden}
+.row .track i{display:block;height:100%;border-radius:2px}
+.tier-mid .av{background:rgba(107,123,240,.14);color:var(--o2)}
+.tier-mid .track i{background:var(--o3)}
+.tier-low .av{background:rgba(65,74,99,.4);color:var(--ink2)}
+.tier-low .track i{background:var(--o5)}
+
+/* ═══ PAGER ═══ */
+.pager{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 24px;border-top:1px solid var(--edge)}
+.pager:empty{display:none}
+.pager .cnt{font-family:var(--mono);font-size:11.5px;color:var(--ink3)}
+.pgs{display:flex;gap:5px;align-items:center}
+.pgs button{
+  min-width:29px;height:29px;padding:0 8px;border-radius:var(--r-sm);
+  border:1px solid var(--edge);background:var(--rise);color:var(--ink2);
+  font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;
+  display:grid;place-items:center;transition:.16s;line-height:1;
+}
+.pgs button:hover:not(:disabled):not([aria-current]){border-color:var(--edge-lit);color:var(--ink)}
+.pgs button:disabled{opacity:.28;cursor:not-allowed}
+.pgs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pgs button[aria-current]{background:var(--accent-wash);border-color:var(--accent-line);color:var(--ink)}
+
+/* ═══ WATER CHART ═══ */
+.subtabs{display:flex;gap:4px;flex-wrap:wrap}
+.subtab{
+  font-family:var(--mono);font-size:11.5px;font-weight:500;color:var(--ink3);
+  padding:6px 13px;border-radius:var(--r-sm);border:1px solid var(--edge);
+  background:transparent;cursor:pointer;transition:.16s;letter-spacing:.04em;
+}
+.subtab:hover{color:var(--ink);border-color:var(--edge-lit)}
+.subtab[aria-pressed="true"]{background:var(--accent-wash);border-color:var(--accent-line);color:var(--ink)}
+.subtab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pill{
+  display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11.5px;
+  font-weight:500;padding:5px 12px;border-radius:999px;border:1px solid;
+}
+.pill .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.pill.flood{background:rgba(208,59,59,.13);border-color:rgba(208,59,59,.4);color:#F08C8C}
+.pill.flood .dot{background:var(--crit)}
+.pill.safe{background:rgba(12,163,12,.13);border-color:rgba(12,163,12,.4);color:#5FD35F}
+.pill.safe .dot{background:var(--good)}
+
+.plot{position:relative;padding:4px 16px 0}
+.plot svg{display:block;width:100%;overflow:visible}
+.tipbox{
+  position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-100%);
+  background:rgba(16,20,33,.97);border:1px solid var(--edge-lit);border-radius:var(--r-sm);
+  padding:8px 11px;box-shadow:0 12px 28px -10px rgba(0,0,0,.9);white-space:nowrap;
+  transition:opacity .12s;z-index:5;
+}
+.tipbox .d{font-family:var(--mono);font-size:10.5px;color:var(--ink3);letter-spacing:.05em}
+.tipbox .v{font-family:var(--mono);font-size:16px;font-weight:500;color:var(--ink);margin-top:2px;font-variant-numeric:tabular-nums}
+.tipbox .s{font-size:11px;margin-top:2px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:11.5px;color:var(--ink3);padding:12px 24px 20px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{width:13px;height:3px;border-radius:2px;flex-shrink:0}
+.legend i.dash{height:0;border-top:2px dashed var(--crit);border-radius:0}
+
+/* ═══ GAUGE ═══ */
+.gauge-body{padding:0 24px 20px}
+.dial{position:relative;max-width:250px;margin:6px auto 4px}
+.dial svg{display:block;width:100%}
+.dial .center{position:absolute;left:0;right:0;bottom:2px;text-align:center}
+.dial .big{font-family:var(--mono);font-size:34px;font-weight:500;color:var(--ink);letter-spacing:-.035em;font-variant-numeric:tabular-nums;line-height:1}
+.dial .cap{font-size:12px;color:var(--ink3);margin-top:5px}
+.sla{margin-top:6px}
+.sla .r{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--edge);font-size:13px}
+.sla .k{display:flex;align-items:center;gap:9px;color:var(--ink2)}
+.sla .k i{width:6px;height:6px;border-radius:50%;background:var(--good);flex-shrink:0}
+.sla .v{font-family:var(--mono);font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ═══ FUNNEL ═══
+   Drawn as one tapering silhouette, not a stack of centred bars.
+   Each stage's WALL ANGLE is that step's drop-off — the slope is the
+   measurement, so the shape has to be continuous to be read at all. */
+.funnel{padding:12px 24px 2px}
+.funnel svg{display:block;width:100%;height:auto}
+.fn-stage{transition:filter .18s}
+.fn-stage:hover{filter:brightness(1.14)}
+.fn-lab{font-weight:600}
+.fn-num{font-family:var(--mono);font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.fn-ann{font-family:var(--mono);fill:var(--ink2)}
+.fn-ann .pct{fill:var(--o2);font-weight:500}
+.fn-loss{font-family:var(--mono);fill:var(--ink3)}
+.ffoot{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  margin:16px 24px 0;padding:16px 0 20px;border-top:1px solid var(--edge);
+  font-size:13px;color:var(--ink2);flex-wrap:wrap;
+}
+.ffoot b{font-family:var(--mono);font-size:26px;font-weight:500;color:var(--o2);letter-spacing:-.03em}
+
+/* ═══ LEVER ═══ */
+.lever{padding:8px 20px 4px}
+.lever svg{display:block;width:100%;height:auto}
+.lever text{font-family:var(--sans)}
+.lever .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.readout{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1px;
+  background:var(--edge);border-top:1px solid var(--edge);
+}
+.readout div{background:var(--deck);padding:15px 24px}
+.readout .k{font-size:11.5px;color:var(--ink3)}
+.readout .v{font-family:var(--mono);font-size:17px;font-weight:500;color:var(--ink);margin-top:5px;font-variant-numeric:tabular-nums}
+.readout .v.up{color:var(--good)}   /* beats `.readout .v` on specificity, not source order */
+.readout .v em{font-style:normal;font-size:12px;color:var(--ink3);margin-left:3px}
+.note{font-size:12.5px;color:var(--ink3);padding:0 24px 18px;line-height:1.6}
+
+/* ═══ COST ═══ */
+.compo{padding:6px 24px 0}
+.compo-bar{display:flex;gap:2px;height:46px;border-radius:var(--r-sm);overflow:hidden}
+.compo-bar i{display:block;height:100%;transition:filter .2s,transform .2s;cursor:default;transform-origin:bottom}
+.compo-bar i:hover{filter:brightness(1.2)}
+.compo-axis{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:9px;letter-spacing:.05em}
+.clist{padding:14px 24px 20px}
+.cr{
+  display:grid;grid-template-columns:11px minmax(96px,1.1fr) 1fr 52px 116px;
+  gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--edge);font-size:13px;
+}
+.cr:first-child{border-top:none}
+.cr .cd{width:11px;height:11px;border-radius:3px}
+.cr .cn{color:var(--ink);font-weight:500}
+.cr .cbar{height:5px;background:var(--ridge);border-radius:2px;overflow:hidden}
+.cr .cbar i{display:block;height:100%;border-radius:2px}
+.cr .cp{font-family:var(--mono);font-size:12px;color:var(--ink3);text-align:right;font-variant-numeric:tabular-nums}
+.cr .cv{font-family:var(--mono);font-weight:500;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.total{
+  display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+  padding:16px 24px 20px;border-top:1px solid var(--edge-lit);
+}
+.total .k{font-size:12.5px;color:var(--ink3)}
+.total .v{font-family:var(--mono);font-size:26px;font-weight:500;color:var(--ink);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+
+/* ═══ RESPONSIVE ═══ */
+/* Roster rows reflow by NAMED AREAS, not auto-placement. Every cell is
+   a grid child, so implicit flow silently drops one into the wrong
+   track as soon as the column count changes. */
+@media (max-width:1020px){
+  .grid2{grid-template-columns:1fr}
+  .row{
+    grid-template-columns:30px 34px 1fr 150px;
+    grid-template-areas:"rk av who score" "rk av lev score";
+    row-gap:5px;
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  ::selection{background:rgba(124,255,107,.3)}
-  body{font-family:'Inter','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
-    background:var(--bg);color:var(--body);-webkit-font-smoothing:antialiased;
-    background-image:radial-gradient(#1E1E21 1.2px, transparent 1.2px);background-size:22px 22px;
-    padding:34px 40px 70px;min-width:1180px}
-  .wrap{max-width:1240px;margin:0 auto}
-  .lbl{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t3)}
+  .row .rk{grid-area:rk} .row .av{grid-area:av} .row .who{grid-area:who}
+  .row .lev{grid-area:lev} .row .scorecell{grid-area:score}
+}
+@media (max-width:720px){
+  .wrap{padding:20px 16px 60px}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  /* stacked three-up wastes the screen — go horizontal instead */
+  .podium{grid-template-columns:1fr;gap:10px}
+  .pod{
+    display:grid;grid-template-columns:auto 1fr auto;align-items:center;
+    gap:14px;text-align:left;padding:14px 16px;
+  }
+  .pod.gold{transform:none;order:-1}
+  .pod.gold:hover{transform:translateY(-3px)}
+  .pod .ring{width:50px;height:50px;margin:0}
+  .pod .ring .face{inset:7px;font-size:15px}
+  .pod .sc{margin-top:0;font-size:22px}
+  .pod .ghost{font-size:30px;top:9px;right:14px}
+  .pod .lead{grid-column:1/-1;justify-self:start;margin-bottom:0}
+  .phead,.band,.row,.pager,.clist,.compo,.note,.total,.legend,.gauge-body{padding-left:16px;padding-right:16px}
+  .readout div{padding-left:16px;padding-right:16px}
+  .row{
+    grid-template-columns:26px 34px 1fr;
+    grid-template-areas:"rk av who" "lev lev lev" "score score score";
+    row-gap:8px;align-items:start;
+  }
+  .row .who{align-self:center}
+  .row .lev,.row .scorecell{padding-left:60px}
+  .cr{grid-template-columns:11px 1fr 44px 100px;row-gap:6px}
+  .cr .cbar{grid-column:2/-1}
+  .masthead{gap:16px}
+  .meta{margin-left:0}
+  .scope{text-align:left}
+}
 
-  /* header + tabs */
-  .topbar{display:flex;align-items:baseline;gap:16px;margin-bottom:22px}
-  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--green)}
-  .topbar h1{font-size:26px;font-weight:700;letter-spacing:-.02em;color:var(--white)}
-  .topbar .date{margin-left:auto;font-size:12.5px;color:var(--t3)}
-  .tabs{display:inline-flex;gap:6px;background:var(--surface);border:1px solid var(--border);
-    border-radius:999px;padding:6px;margin-bottom:26px;box-shadow:var(--sh-card)}
-  .tab{font-size:13px;font-weight:600;color:var(--t2);padding:9px 18px;border-radius:999px;cursor:pointer;transition:.15s}
-  .tab:hover{color:var(--white);background:#232326}
-  .tab.on{background:var(--green);color:#0A0A0B}
-
-  .view{display:none;animation:fade .25s ease}
-  .view.on{display:block}
-  @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-
-  .panel{background:var(--panel);backdrop-filter:blur(20px);border:1px solid var(--border);
-    border-radius:20px;box-shadow:var(--sh-panel)}
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--sh-card)}
-  .grid2{display:grid;grid-template-columns:1.15fr .85fr;gap:20px}
-  .phead{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 6px}
-  .phead h2{font-size:15px;font-weight:600;color:var(--white)}
-  .phead .tools{color:var(--t3);font-size:14px;letter-spacing:4px}
-
-  /* KPI */
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
-  .kpi{padding:18px 20px}
-  .kpi .k{font-size:12.5px;color:var(--t3)}
-  .kpi .v{font-size:30px;font-weight:800;letter-spacing:-1px;margin-top:8px;color:var(--white)}
-  .kpi.p .v{color:var(--green)} .kpi.b .v{color:var(--blue)} .kpi.a .v{color:var(--amber)}
-
-  /* leaderboard */
-  .section-t{font-size:12.5px;font-weight:600;color:var(--white);padding:15px 24px;border-top:1px solid var(--hair);display:flex;align-items:center;gap:8px}
-  .section-t .dot{width:8px;height:8px;border-radius:3px}
-  .podium{display:flex;justify-content:center;align-items:flex-end;gap:64px;padding:20px 0 28px}
-  .pod{display:flex;flex-direction:column;align-items:center;gap:6px}
-  .pod .medal{position:relative;margin-bottom:18px}
-  .pod .disc{border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;position:relative;z-index:2;box-shadow:0 6px 16px rgba(0,0,0,.5);text-shadow:0 1px 2px rgba(0,0,0,.3)}
-  .pod .rb{position:absolute;width:15px;height:28px;z-index:1;clip-path:polygon(0 0,100% 0,100% 100%,50% 72%,0 100%)}
-  .pod .medal .rb.l{left:9px;transform:rotate(11deg)} .pod .medal .rb.r{right:9px;transform:rotate(-11deg)}
-  .pod .nm{font-weight:700;font-size:15px;color:var(--white)} .pod .sc{font-size:12.5px;color:var(--t2)}
-  .pod.first .disc{width:64px;height:64px;font-size:24px;background:radial-gradient(circle at 35% 30%,#fce38a,#e3a812);border:3px solid #f3cf6a}
-  .pod.first .rb{background:#d99a10;top:44px}
-  .pod.s2 .disc{width:54px;height:54px;font-size:20px;background:radial-gradient(circle at 35% 30%,#eef0f3,#9ea4ad);border:3px solid #dfe2e6}
-  .pod.s2 .rb{background:#9098a1;top:38px}
-  .pod.s3 .disc{width:54px;height:54px;font-size:20px;background:radial-gradient(circle at 35% 30%,#f4b39f,#d9705d);border:3px solid #eda997}
-  .pod.s3 .rb{background:#cf6551;top:38px}
-  .row{display:grid;grid-template-columns:30px 38px 1fr 260px 150px;gap:14px;align-items:center;padding:12px 24px;border-top:1px solid var(--hair)}
-  .row .rk{font-size:14px;font-weight:700;color:var(--t3);text-align:center}
-  .row .av{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-weight:600;font-size:14px}
-  .row .who .n{font-size:14px;font-weight:700;color:var(--white)} .row .who .r{font-size:11.5px;color:var(--t3);margin-top:1px}
-  .row .lev{font-size:12.5px;color:var(--body)} .row .lev b{color:var(--white);font-weight:700}
-  .row .lev .l2{font-size:11.5px;color:var(--t3);margin-top:2px}
-  .row .sc{display:flex;align-items:center;gap:8px} .row .sc .s{font-size:20px;font-weight:800;color:var(--white)} .row .sc .t{font-size:11.5px;font-weight:600}
-  .row .track{height:6px;background:#2A2A2E;border-radius:4px;margin-top:5px;overflow:hidden} .row .fill{height:100%;border-radius:4px}
-  .up{color:var(--green)} .down{color:var(--red-t)}
-  .mid .av{background:var(--blue-dim);color:var(--blue)} .mid .fill{background:var(--blue)}
-  .low .av{background:var(--amber-dim);color:var(--amber)} .low .fill{background:var(--amber)}
-  .pager{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:16px 24px}
-  .pager .cnt{font-size:12.5px;color:var(--t3)}
-  .pager .pgs{display:flex;gap:6px;align-items:center}
-  .pager .arw,.pager .pg{min-width:30px;height:30px;border-radius:8px;display:grid;place-items:center;border:1px solid var(--border);background:var(--surface);color:var(--t2);cursor:pointer;transition:.15s;font-size:13px;font-weight:600;padding:0 8px;line-height:1}
-  .pager .arw{font-size:16px}
-  .pager .arw:hover:not(:disabled),.pager .pg:hover:not(.on){border-color:var(--t2);color:var(--white)}
-  .pager .arw:disabled{opacity:.3;cursor:not-allowed}
-  .pager .pg.on{color:#0A0A0B;font-weight:800}
-  .pager.mid .pg.on{background:var(--blue);border-color:var(--blue)}
-  .pager.low .pg.on{background:var(--amber);border-color:var(--amber)}
-
-  /* water level */
-  .subtabs{display:flex;gap:6px}
-  .subtab{font-size:12px;font-weight:600;color:var(--t2);padding:6px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--border)}
-  .subtab.on{background:var(--green-dim);color:var(--green);border-color:#274a2c}
-  .pill{font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px}
-  .pill.flood{background:var(--red-dim);color:var(--red-t)} .pill.safe{background:var(--green-dim);color:var(--green)}
-  .chart-legend{display:flex;gap:16px;font-size:11.5px;color:var(--t2);padding:0 24px 20px}
-  .chart-legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
-  .dashp{border-top:2px dashed var(--red)}
-
-  .gauge-wrap{padding:22px 24px}
-  .gauge{display:flex;justify-content:center;margin-bottom:10px}
-  .semi{position:relative;width:230px}
-  .semi svg{display:block;width:100%}
-  .semi-label{position:absolute;left:0;right:0;bottom:4px;text-align:center}
-  .g-center .big,.semi-label .big{font-size:30px;font-weight:800;color:var(--white);letter-spacing:-.5px} .g-center .cap,.semi-label .cap{font-size:12px;color:var(--t3);margin-top:2px}
-  .sla .r{display:flex;justify-content:space-between;padding:11px 0;font-size:13px;border-top:1px solid var(--hair)}
-  .sla .r .k{color:var(--t3);display:flex;align-items:center;gap:9px} .sla .r .v{font-weight:700;color:var(--white)}
-  .sla .r .k .d{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
-
-  /* funnel */
-  .funnel{display:flex;flex-direction:column;align-items:center;gap:4px;padding:32px 0}
-  .fstage{font-weight:700;text-align:center;padding:16px 0;position:relative;border-radius:4px}
-  .fstage .lab{font-size:13px} .fstage .num{font-size:18px;margin-top:2px}
-  .fstage .conv{position:absolute;right:-92px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--t2);font-weight:600}
-  .funnel-foot{text-align:center;font-size:13px;color:var(--t2);margin-top:12px}
-  .funnel-foot b{color:var(--green);font-size:16px}
-
-  /* ROI lever */
-  .lever-wrap{position:relative;height:300px;margin:4px 20px}
-  .beam{position:absolute;top:96px;left:50%;width:560px;height:8px;margin-left:-280px;background:linear-gradient(90deg,#3a3a40,#5a5a62,#3a3a40);border-radius:6px;transform:rotate(6.5deg);transform-origin:center}
-  .fulcrum{position:absolute;top:104px;left:50%;margin-left:-28px;width:0;height:0;border-left:28px solid transparent;border-right:28px solid transparent;border-bottom:78px solid #202027}
-  .fulcrum-lbl{position:absolute;top:120px;left:50%;margin-left:-40px;width:80px;text-align:center;font-size:10.5px;font-weight:700;color:var(--green)}
-  .fulcrum-lbl small{display:block;color:var(--t3);font-weight:500;font-size:9px;margin-top:2px}
-  .pan{position:absolute;width:190px;border-radius:16px;padding:15px 16px;text-align:center}
-  .pan .cap{font-size:11px;font-weight:700;letter-spacing:.05em} .pan .amt{font-size:26px;font-weight:700;color:var(--white);margin:5px 0 3px} .pan .note{font-size:11px;color:var(--t2)}
-  .pan-in{left:calc(50% - 290px);top:34px;background:var(--surface);border:1px solid var(--border)} .pan-in .cap{color:var(--t2)}
-  .pan-out{left:calc(50% + 100px);top:130px;background:linear-gradient(160deg,#14241a,#101614);border:1px solid #2f5a33} .pan-out .cap{color:var(--green)}
-  .lev-badge{position:absolute;top:212px;left:50%;transform:translateX(-50%);text-align:center}
-  .lev-badge .x{font-size:38px;font-weight:800;color:var(--green);line-height:1} .lev-badge .t{font-size:11px;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
-  .readhint{text-align:center;font-size:11.5px;color:var(--t3);padding:6px 24px 20px}
-
-  /* DORA */
-  .dora-head{padding:22px 24px 6px}
-  .dora-head .tier{font-size:34px;font-weight:800;color:var(--green);letter-spacing:-.5px;margin-top:6px}
-  .dora-head .desc{font-size:12.5px;color:var(--t2);margin-top:8px;max-width:660px;line-height:1.55}
-  .dora-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:12px 24px 4px}
-  .dtile{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:var(--surface)}
-  .dtile .k{font-size:11.5px;color:var(--t3)} .dtile .v{font-size:25px;font-weight:800;margin-top:6px;color:var(--white)}
-  .dtile .badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:var(--green-dim);color:var(--green);margin-left:6px;vertical-align:middle}
-  .dtile .d{font-size:11px;color:var(--t3);margin-top:5px;line-height:1.4}
-  .checkup{padding:6px 24px 8px}
-  .checkup .r{font-size:12.5px;line-height:1.6;margin-bottom:8px;color:var(--t2)} .checkup .r b{color:var(--white)}
-  .slider{margin:6px 24px 8px;position:relative;height:44px}
-  .slider .track{height:6px;border-radius:4px;background:linear-gradient(90deg,#2A2A2E,#2f5a33,var(--green),var(--violet));margin-top:8px}
-  .slider .ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-top:8px}
-  .slider .knob{position:absolute;top:2px;left:70%;width:18px;height:18px;border-radius:50%;background:var(--surface);border:3px solid var(--green);box-shadow:0 2px 8px rgba(0,0,0,.5)}
-
-  /* cost */
-  .cost{display:grid;grid-template-columns:300px 1fr;gap:34px;padding:26px;align-items:center}
-  .donut{position:relative;width:240px;height:240px;border-radius:50%;margin:0 auto}
-  .donut::after{content:"";position:absolute;inset:52px;background:var(--surface);border-radius:50%}
-  .donut .ctr{position:absolute;inset:0;display:grid;place-items:center;z-index:2;text-align:center}
-  .donut .ctr .t{font-size:11px;color:var(--t3)} .donut .ctr .v{font-size:23px;font-weight:800;color:var(--white);letter-spacing:-.5px}
-  .clist .cr{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px;border-top:1px solid var(--hair)}
-  .clist .cr:first-child{border-top:none}
-  .clist .cd{width:10px;height:10px;border-radius:3px;flex-shrink:0} .clist .cn{flex:1;color:var(--body)} .clist .cp{color:var(--t3);width:44px;text-align:right} .clist .cv{font-weight:700;color:var(--white);width:100px;text-align:right}
+/* ═══ MOTION / FOCUS ═══ */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+  .ribbon-track{animation:none}
+}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
 </style>
 </head>
 <body>
+
+<div class="ribbon" aria-hidden="true"><div class="ribbon-track" id="ribbon"></div></div>
+
 <div class="wrap">
 
-  <div class="topbar">
-    <div><div class="eyebrow">Productivity Ops</div><h1>AI 生产力监控大盘</h1></div>
-    <div class="date">研发团队 · 2026 Q2 · 更新于 07-28</div>
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">Productivity <span>/</span> Ops</div>
+      <h1>AI 生产力监控大盘</h1>
+    </div>
+    <div class="meta">
+      <span class="live"><span class="beacon"></span>采集中</span>
+      <div class="scope"><b>研发团队 · 17 人</b><br>2026 Q2 · 更新于 07-28</div>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <div class="tab-glide" id="glide"></div>
+    <button class="tab" role="tab" aria-selected="true"  data-v="talent">人力排行榜</button>
+    <button class="tab" role="tab" aria-selected="false" data-v="water">流量水位</button>
+    <button class="tab" role="tab" aria-selected="false" data-v="funnel">转化漏斗</button>
+    <button class="tab" role="tab" aria-selected="false" data-v="roi">投入产出</button>
+    <button class="tab" role="tab" aria-selected="false" data-v="cost">成本分布</button>
   </div>
 
-  <div class="tabs" id="tabs">
-    <div class="tab on" data-v="talent">人力排行榜</div>
-    <div class="tab" data-v="water">流量水位</div>
-    <div class="tab" data-v="funnel">转化漏斗</div>
-    <div class="tab" data-v="roi">投入产出</div>
-    <div class="tab" data-v="cost">成本分布</div>
-  </div>
-
-  <!-- 1. TALENT -->
-  <div class="view on" id="v-talent">
+  <!-- ══ 1. TALENT ══ -->
+  <section class="view on" id="v-talent" role="tabpanel">
     <div class="kpis">
-      <div class="kpi card"><div class="k">AI 潜力均分</div><div class="v">66</div></div>
-      <div class="kpi card p"><div class="k">AI 先锋</div><div class="v">3</div></div>
-      <div class="kpi card b"><div class="k">中潜力层</div><div class="v">11</div></div>
-      <div class="kpi card a"><div class="k">低潜力层</div><div class="v">3</div></div>
-    </div>
-    <div class="panel">
-      <div class="section-t" style="border-top:none"><span class="dot" style="background:var(--green)"></span>AI 先锋 · 前三名</div>
-      <div class="podium">
-        <div class="pod s2"><div class="medal"><div class="disc">2</div><span class="rb l"></span><span class="rb r"></span></div><div class="nm">张伟</div><div class="sc">88 分</div></div>
-        <div class="pod first"><div class="medal"><div class="disc">1</div><span class="rb l"></span><span class="rb r"></span></div><div class="nm">李娜</div><div class="sc">92 分</div></div>
-        <div class="pod s3"><div class="medal"><div class="disc">3</div><span class="rb l"></span><span class="rb r"></span></div><div class="nm">王芳</div><div class="sc">81 分</div></div>
+      <div class="kpi">
+        <div class="k">AI 潜力均分</div>
+        <div class="fig"><span class="v" data-count="66">0</span><span class="u">/ 100</span><span class="d up">▲ 4</span></div>
+        <div class="bar"><i class="blocks" style="width:66%;background:var(--o2)"></i></div>
       </div>
-      <div class="section-t"><span class="dot" style="background:var(--blue)"></span>中潜力层 · 11 人</div>
-      <div id="tier-mid"></div>
-      <div class="pager mid" id="pager-mid"></div>
-      <div class="section-t"><span class="dot" style="background:var(--amber)"></span>低潜力层 · 最后 3 名</div>
-      <div id="tier-low"></div>
-      <div class="pager low" id="pager-low"></div>
+      <div class="kpi">
+        <div class="k"><span class="chip" style="background:var(--c1)"></span>AI 先锋</div>
+        <div class="fig"><span class="v" data-count="3">0</span><span class="u">人</span><span class="d up">▲ 1</span></div>
+        <div class="bar"><i class="blocks" style="width:18%;background:var(--c1)"></i></div>
+      </div>
+      <div class="kpi">
+        <div class="k"><span class="chip" style="background:var(--o3)"></span>中潜力层</div>
+        <div class="fig"><span class="v" data-count="11">0</span><span class="u">人</span><span class="d">—</span></div>
+        <div class="bar"><i class="blocks" style="width:65%;background:var(--o3)"></i></div>
+      </div>
+      <div class="kpi">
+        <div class="k"><span class="chip" style="background:var(--o5)"></span>低潜力层</div>
+        <div class="fig"><span class="v" data-count="3">0</span><span class="u">人</span><span class="d down">▼ 1</span></div>
+        <div class="bar"><i class="blocks" style="width:18%;background:var(--o5)"></i></div>
+      </div>
     </div>
-  </div>
 
-  <!-- 2. WATER -->
-  <div class="view" id="v-water">
+    <div class="panel">
+      <div class="phead">
+        <div><h2>AI 先锋 · 前三名</h2><div class="sub">按 AI 潜力综合分排序</div></div>
+        <span class="tag">Top 3</span>
+      </div>
+      <div class="podium">
+        <article class="pod">
+          <div class="ghost">02</div>
+          <div class="ring">
+            <svg viewBox="0 0 74 74"><circle cx="37" cy="37" r="33" fill="none" stroke="#1B2133" stroke-width="4"/>
+            <circle cx="37" cy="37" r="33" fill="none" stroke="var(--o2)" stroke-width="4" stroke-linecap="round" stroke-dasharray="207.3" stroke-dashoffset="24.9"/></svg>
+            <div class="face">张</div>
+          </div>
+          <div class="pod-id"><div class="nm">张伟</div><div class="rl">后端 · 平台组</div></div>
+          <div class="sc">88<small>分</small></div>
+        </article>
+        <article class="pod gold">
+          <span class="lead">Rank 01</span>
+          <div class="ring">
+            <svg viewBox="0 0 74 74"><circle cx="37" cy="37" r="33" fill="none" stroke="#1B2133" stroke-width="4"/>
+            <circle cx="37" cy="37" r="33" fill="none" stroke="var(--c1)" stroke-width="4" stroke-linecap="round" stroke-dasharray="207.3" stroke-dashoffset="16.6"/></svg>
+            <div class="face">李</div>
+          </div>
+          <div class="pod-id"><div class="nm">李娜</div><div class="rl">算法 · 模型组</div></div>
+          <div class="sc">92<small>分</small></div>
+        </article>
+        <article class="pod">
+          <div class="ghost">03</div>
+          <div class="ring">
+            <svg viewBox="0 0 74 74"><circle cx="37" cy="37" r="33" fill="none" stroke="#1B2133" stroke-width="4"/>
+            <circle cx="37" cy="37" r="33" fill="none" stroke="var(--o3)" stroke-width="4" stroke-linecap="round" stroke-dasharray="207.3" stroke-dashoffset="39.4"/></svg>
+            <div class="face">王</div>
+          </div>
+          <div class="pod-id"><div class="nm">王芳</div><div class="rl">前端 · 体验组</div></div>
+          <div class="sc">81<small>分</small></div>
+        </article>
+      </div>
+
+      <div class="band"><span class="chip" style="background:var(--o3)"></span>中潜力层<span class="n">11 人</span></div>
+      <div id="tier-mid" class="tier-mid"></div>
+      <div class="pager" id="pager-mid"></div>
+
+      <div class="band"><span class="chip" style="background:var(--o5)"></span>低潜力层<span class="n">3 人</span></div>
+      <div id="tier-low" class="tier-low"></div>
+      <div class="pager" id="pager-low"></div>
+    </div>
+  </section>
+
+  <!-- ══ 2. WATER ══ -->
+  <section class="view" id="v-water" role="tabpanel">
     <div class="grid2">
       <div class="panel">
         <div class="phead">
           <div class="subtabs" id="wtabs">
-            <div class="subtab on" data-m="token">Token</div><div class="subtab" data-m="conc">并发</div>
-            <div class="subtab" data-m="rpm">RPM</div><div class="subtab" data-m="tpm">TPM</div>
+            <button class="subtab" aria-pressed="true"  data-m="token">TOKEN</button>
+            <button class="subtab" aria-pressed="false" data-m="conc">并发</button>
+            <button class="subtab" aria-pressed="false" data-m="rpm">RPM</button>
+            <button class="subtab" aria-pressed="false" data-m="tpm">TPM</button>
           </div>
           <div id="wstatus"></div>
         </div>
-        <div id="wchart" style="padding:8px 14px"></div>
-        <div class="chart-legend">
-          <span><i class="dashp"></i>预警水位线</span><span><i style="background:var(--green)"></i>当前水位</span>
-          <span><i style="background:var(--red)"></i>红区·洪水位</span><span><i style="background:#2A2A2E"></i>安全区</span>
+        <div class="plot" id="wplot">
+          <div id="wchart"></div>
+          <div class="tipbox" id="wtip"></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--o2)"></i>当前水位</span>
+          <span><i class="dash"></i>预警线</span>
+          <span><i style="background:rgba(208,59,59,.4)"></i>洪水区</span>
         </div>
       </div>
-      <div class="panel gauge-wrap">
-        <div class="phead" style="padding:0 0 16px"><h2>性能及稳定性</h2><span class="lbl">实时</span></div>
-        <div class="gauge">
-          <div class="semi">
-            <svg viewBox="0 0 200 116">
-              <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="#2A2A2E" stroke-width="14" stroke-linecap="round"/>
-              <path d="M 16 100 A 84 84 0 0 1 184 100" fill="none" stroke="#7CFF6B" stroke-width="14" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="1.6"/>
+
+      <div class="panel">
+        <div class="phead"><div><h2>性能及稳定性</h2><div class="sub">近 24 小时滚动</div></div><span class="tag">Live</span></div>
+        <div class="gauge-body">
+          <div class="dial">
+            <svg viewBox="0 0 220 128" aria-label="任务成功率 99.4%">
+              <g id="ticks"></g>
+              <path d="M 22 108 A 88 88 0 0 1 198 108" fill="none" stroke="#1B2133" stroke-width="11" stroke-linecap="round"/>
+              <path d="M 22 108 A 88 88 0 0 1 198 108" fill="none" stroke="var(--o2)" stroke-width="11" stroke-linecap="round"
+                    stroke-dasharray="276.5" stroke-dashoffset="1.7" style="filter:drop-shadow(0 0 7px rgba(140,157,255,.45))"/>
             </svg>
-            <div class="semi-label g-center"><div class="big">99.4%</div><div class="cap">任务成功率</div></div>
+            <div class="center"><div class="big">99.4<span style="font-size:18px">%</span></div><div class="cap">任务成功率</div></div>
+          </div>
+          <div class="sla">
+            <div class="r"><span class="k"><i></i>可用率</span><span class="v">99.96%</span></div>
+            <div class="r"><span class="k"><i></i>P95 响应</span><span class="v">820 ms</span></div>
+            <div class="r"><span class="k"><i style="background:var(--warn)"></i>错误率</span><span class="v" style="color:var(--warn)">0.42%</span></div>
+            <div class="r"><span class="k"><i></i>SLA 达成</span><span class="v">99.2%</span></div>
           </div>
         </div>
-        <div class="sla">
-          <div class="r"><span class="k"><i class="d"></i>可用率</span><span class="v">99.96%</span></div>
-          <div class="r"><span class="k"><i class="d"></i>P95 响应</span><span class="v">820ms</span></div>
-          <div class="r"><span class="k"><i class="d" style="background:var(--amber)"></i>错误率</span><span class="v" style="color:var(--amber)">0.42%</span></div>
-          <div class="r"><span class="k"><i class="d"></i>SLA 达成</span><span class="v">99.2%</span></div>
-        </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- 3. FUNNEL -->
-  <div class="view" id="v-funnel">
+  <!-- ══ 3. FUNNEL ══ -->
+  <section class="view" id="v-funnel" role="tabpanel">
     <div class="panel">
-      <div class="phead"><h2>SDLC · 研发转化漏斗</h2><span class="lbl">近 7 日</span></div>
-      <div class="funnel">
-        <div class="fstage" style="width:70%;background:#1e3a24;color:#a6ff9a"><div class="lab">提问</div><div class="num">1,000</div></div>
-        <div class="fstage" style="width:56%;background:#2f5a33;color:#c8ffbe"><div class="lab">采纳</div><div class="num">720</div><span class="conv">72%</span></div>
-        <div class="fstage" style="width:44%;background:#4e9e45;color:#0A0A0B"><div class="lab">生成 PR</div><div class="num">590</div><span class="conv">82%</span></div>
-        <div class="fstage" style="width:34%;background:#7CFF6B;color:#0A0A0B"><div class="lab">合入主干</div><div class="num">450</div><span class="conv">77%</span></div>
-      </div>
-      <div class="funnel-foot">提问 → 合入主干 · 总转化率 <b>45%</b></div>
+      <div class="phead"><div><h2>SDLC · 研发转化漏斗</h2><div class="sub">锥壁斜率 = 该步流失，底色为 100% 进料量</div></div><span class="tag">近 7 日</span></div>
+      <div class="funnel" id="funnel"></div>
+      <div class="ffoot">提问 → 合入主干 · 端到端转化 <b>45%</b></div>
     </div>
-  </div>
+  </section>
 
-  <!-- 4. ROI -->
-  <div class="view" id="v-roi">
+  <!-- ══ 4. ROI ══ -->
+  <section class="view" id="v-roi" role="tabpanel">
     <div class="panel">
-      <div class="phead"><h2>投入产出杠杆</h2><div class="tools">✎ ⤢ ▤</div></div>
-      <div class="readhint" style="text-align:left;padding:2px 24px 4px">支点为 AI 赋能，¥86K token 投入撬动 124 万行留存代码 —— 每 ¥1 token 产出 14.4 行留存代码</div>
-      <div class="lever-wrap">
-        <div class="pan pan-in"><div class="cap">Invest</div><div class="amt">¥86K</div><div class="note">Token 消耗金额</div></div>
-        <div class="pan pan-out"><div class="cap">Return</div><div class="amt">124<span style="font-size:15px;font-weight:600;color:var(--t2)">万行</span></div><div class="note">最终留存代码行数</div></div>
-        <div class="beam"></div><div class="fulcrum"></div>
-        <div class="fulcrum-lbl">AI 赋能<small>FULCRUM</small></div>
-        <div class="lev-badge"><div class="x">14.4<span style="font-size:15px;margin-left:2px">行/元</span></div><div class="t">留存 / 投入</div></div>
-      </div>
-      <div class="readhint">横梁向 Return 侧倾斜，倾角越大 → 每元 token 留存的代码行数越高</div>
-    </div>
-  </div>
+      <div class="phead"><div><h2>投入产出杠杆</h2><div class="sub">支点 = AI 赋能。投入臂越长，同样的钱撬起的代码越多</div></div><span class="tag">2026 Q2</span></div>
+      <div class="lever">
+        <svg viewBox="0 0 760 330" role="img" aria-label="杠杆图：8.6 万元 token 投入撬动 124 万行留存代码，杠杆比 14.4 行每元">
+          <defs>
+            <linearGradient id="beamG" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#C48012"/><stop offset=".52" stop-color="#5D6684"/><stop offset="1" stop-color="#8C9DFF"/>
+            </linearGradient>
+            <linearGradient id="amberG" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(196,128,18,.20)"/><stop offset="1" stop-color="rgba(196,128,18,.05)"/>
+            </linearGradient>
+            <linearGradient id="indigoG" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(140,157,255,.22)"/><stop offset="1" stop-color="rgba(140,157,255,.05)"/>
+            </linearGradient>
+          </defs>
 
-  <!-- 6. COST -->
-  <div class="view" id="v-cost">
-    <div class="panel">
-      <div class="phead"><h2>成本分布 · 来源</h2><span class="lbl">2026-05-27 → 06-26</span></div>
-      <div class="cost">
-        <div class="donut" id="donut"><div class="ctr"><div><div class="t">总成本</div><div class="v">$3,899,843</div></div></div></div>
-        <div class="clist" id="clist"></div>
+          <!-- fulcrum base -->
+          <rect x="432" y="266" width="96" height="5" rx="2.5" fill="#1B2133"/>
+          <path d="M480 150 L504 264 L456 264 Z" fill="#232B41" stroke="rgba(255,255,255,.09)"/>
+          <text x="480" y="292" text-anchor="middle" font-size="12" font-weight="600" fill="#8C9DFF">支点 · AI 赋能</text>
+          <text x="480" y="309" text-anchor="middle" font-size="10.5" fill="#626C85" class="mono" letter-spacing="1.4">FULCRUM</text>
+
+          <!-- beam -->
+          <line x1="122" y1="187.6" x2="609" y2="136.4" stroke="url(#beamG)" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="480" cy="150" r="6" fill="#0F1320" stroke="#8C9DFF" stroke-width="2.5"/>
+
+          <!-- arm labels, sat directly under each beam segment -->
+          <text x="300" y="194" text-anchor="middle" font-size="10.5" fill="#626C85" class="mono" letter-spacing=".8">投入臂 · 长</text>
+          <text x="556" y="162" text-anchor="middle" font-size="10.5" fill="#626C85" class="mono" letter-spacing=".8">产出臂 · 短</text>
+
+          <!-- hangers -->
+          <line x1="122" y1="190" x2="122" y2="226" stroke="#414A63" stroke-width="1.5"/>
+          <line x1="609" y1="139" x2="617" y2="174" stroke="#414A63" stroke-width="1.5"/>
+
+          <!-- invest pan (human, warm, long arm — pressed down) -->
+          <rect x="17" y="226" width="210" height="96" rx="14" fill="url(#amberG)" stroke="rgba(196,128,18,.38)"/>
+          <text x="37" y="252" font-size="10.5" font-weight="600" fill="#C48012" class="mono" letter-spacing="1.6">INVEST</text>
+          <text x="37" y="288" font-size="30" font-weight="500" fill="#F2F4FA" class="mono" letter-spacing="-1">¥86K</text>
+          <text x="37" y="308" font-size="11.5" fill="#98A1B8">Token 消耗金额</text>
+
+          <!-- return pan (machine, cool, short arm — lifted) -->
+          <rect x="512" y="174" width="210" height="96" rx="14" fill="url(#indigoG)" stroke="rgba(140,157,255,.4)"/>
+          <text x="532" y="200" font-size="10.5" font-weight="600" fill="#8C9DFF" class="mono" letter-spacing="1.6">RETURN</text>
+          <text x="532" y="236" font-size="30" font-weight="500" fill="#F2F4FA" class="mono" letter-spacing="-1">124<tspan font-size="14" fill="#98A1B8" dx="4">万行</tspan></text>
+          <text x="532" y="256" font-size="11.5" fill="#98A1B8">最终留存代码行数</text>
+
+          <!-- leverage badge -->
+          <text x="222" y="106" font-size="44" font-weight="500" fill="#8C9DFF" class="mono" letter-spacing="-2">14.4</text>
+          <text x="330" y="106" font-size="14" fill="#98A1B8">行 / 元</text>
+          <text x="222" y="128" font-size="10.5" fill="#626C85" class="mono" letter-spacing="1.4">LEVERAGE RATIO</text>
+        </svg>
       </div>
+      <div class="readout">
+        <div><div class="k">Token 投入</div><div class="v">¥86,000</div></div>
+        <div><div class="k">留存代码</div><div class="v">1,240,000 <em>行</em></div></div>
+        <div><div class="k">每元产出</div><div class="v">14.4 <em>行 / 元</em></div></div>
+        <div><div class="k">环比</div><div class="v up">▲ 2.1 <em>行 / 元</em></div></div>
+      </div>
+      <p class="note">读法：投入臂（左）远长于产出臂（右），所以 ¥86K 的 token 支出足以抬起 124 万行留存代码。支点越靠右，同样的投入撬动的产出越大。</p>
     </div>
-  </div>
+  </section>
+
+  <!-- ══ 5. COST ══ -->
+  <section class="view" id="v-cost" role="tabpanel">
+    <div class="panel">
+      <div class="phead"><div><h2>成本分布 · 来源</h2><div class="sub">按消耗来源拆分，前四项单列，尾部合并</div></div><span class="tag">05-27 → 06-26</span></div>
+      <div class="compo">
+        <div class="compo-bar" id="compo"></div>
+        <div class="compo-axis"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+      </div>
+      <div class="clist" id="clist"></div>
+      <div class="total"><span class="k">总成本 · 30 天</span><span class="v">$3,899,843</span></div>
+    </div>
+  </section>
 
 </div>
 
 <script>
-document.querySelectorAll('#tabs .tab').forEach(t=>{t.onclick=()=>{
-  document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.remove('on'));
-  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
-  t.classList.add('on'); document.getElementById('v-'+t.dataset.v).classList.add('on');
-};});
+'use strict';
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
 
-// ---------- 分层排行榜：分页（数字 + 箭头）----------
-const TIERS={
-  mid:{cls:'mid',size:3,page:0,people:[
-    {rk:4, av:'刘',name:'刘洋',role:'后端',adopt:66,ratio:55,deleg:22,eff:1.9,score:78,trend:2},
-    {rk:5, av:'陈',name:'陈静',role:'数据',adopt:64,ratio:53,deleg:21,eff:1.8,score:75,trend:4},
-    {rk:6, av:'杨',name:'杨帆',role:'全栈',adopt:61,ratio:50,deleg:20,eff:1.8,score:72,trend:-2},
-    {rk:7, av:'冯',name:'冯磊',role:'后端',adopt:59,ratio:48,deleg:18,eff:1.7,score:70,trend:3},
-    {rk:8, av:'何',name:'何静',role:'全栈',adopt:57,ratio:46,deleg:17,eff:1.7,score:68,trend:1},
-    {rk:9, av:'吕',name:'吕超',role:'算法',adopt:55,ratio:45,deleg:16,eff:1.6,score:66,trend:2},
-    {rk:10,av:'马',name:'马丽',role:'前端',adopt:53,ratio:43,deleg:17,eff:1.7,score:63,trend:6},
-    {rk:11,av:'朱',name:'朱军',role:'后端',adopt:51,ratio:42,deleg:15,eff:1.6,score:61,trend:-1},
-    {rk:12,av:'胡',name:'胡伟',role:'全栈',adopt:49,ratio:40,deleg:16,eff:1.6,score:58,trend:2},
-    {rk:13,av:'秦',name:'秦岚',role:'测试',adopt:47,ratio:38,deleg:12,eff:1.5,score:56,trend:1},
-    {rk:14,av:'许',name:'许峰',role:'数据',adopt:45,ratio:37,deleg:13,eff:1.5,score:54,trend:-2},
+/* ── SIGNATURE: build the token ribbon ─────────────────────────
+   Variable-width discrete blocks, a few lit. Two copies so the
+   drift loops seamlessly. */
+(function(){
+  const make = () => {
+    let h = '';
+    for (let i = 0; i < 130; i++) {
+      const w = 5 + Math.round(Math.random() * 30);
+      const r = Math.random();
+      const c = r > .94 ? ' class="hot"' : r > .82 ? ' class="lit"' : '';
+      h += `<i${c} style="width:${w}px"></i>`;
+    }
+    return h;
+  };
+  const strip = make();
+  $('#ribbon').innerHTML = strip + strip;
+})();
+
+/* ── TABS with sliding indicator ───────────────────────────── */
+const tabs = $$('#tabs .tab'), glide = $('#glide');
+function moveGlide(el){ glide.style.width = el.offsetWidth + 'px'; glide.style.transform = `translateX(${el.offsetLeft - 5}px)`; }
+tabs.forEach(t => t.addEventListener('click', () => {
+  tabs.forEach(x => x.setAttribute('aria-selected', 'false'));
+  $$('.view').forEach(v => v.classList.remove('on'));
+  t.setAttribute('aria-selected', 'true');
+  $('#v-' + t.dataset.v).classList.add('on');
+  moveGlide(t);
+  if (t.dataset.v === 'water') renderWater(CURRENT_METRIC);
+}));
+addEventListener('resize', () => moveGlide($('#tabs .tab[aria-selected="true"]')));
+requestAnimationFrame(() => moveGlide(tabs[0]));
+
+/* ── KPI count-up ──────────────────────────────────────────── */
+$$('[data-count]').forEach(el => {
+  const end = +el.dataset.count;
+  if (REDUCED) { el.textContent = end; return; }
+  const t0 = performance.now(), dur = 900;
+  (function step(now){
+    const p = Math.min(1, (now - t0) / dur);
+    el.textContent = Math.round(end * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(step);
+  })(performance.now());
+});
+
+/* ── GAUGE ticks ───────────────────────────────────────────── */
+(function(){
+  let h = '';
+  for (let i = 0; i <= 20; i++) {
+    const a = Math.PI * (1 - i / 20), cx = 110, cy = 108, r0 = 98, r1 = i % 5 === 0 ? 90 : 94;
+    h += `<line x1="${(cx + r0 * Math.cos(a)).toFixed(1)}" y1="${(cy - r0 * Math.sin(a)).toFixed(1)}"
+                x2="${(cx + r1 * Math.cos(a)).toFixed(1)}" y2="${(cy - r1 * Math.sin(a)).toFixed(1)}"
+                stroke="${i % 5 === 0 ? '#414A63' : '#232B41'}" stroke-width="1.4" stroke-linecap="round"/>`;
+  }
+  $('#ticks').innerHTML = h;
+})();
+
+/* ── LEADERBOARD ───────────────────────────────────────────── */
+const TIERS = {
+  mid: { cls:'tier-mid', size:4, page:0, people:[
+    {rk:4, av:'刘', name:'刘洋', role:'后端', adopt:66, ratio:55, deleg:22, eff:1.9, score:78, trend:2},
+    {rk:5, av:'陈', name:'陈静', role:'数据', adopt:64, ratio:53, deleg:21, eff:1.8, score:75, trend:4},
+    {rk:6, av:'杨', name:'杨帆', role:'全栈', adopt:61, ratio:50, deleg:20, eff:1.8, score:72, trend:-2},
+    {rk:7, av:'冯', name:'冯磊', role:'后端', adopt:59, ratio:48, deleg:18, eff:1.7, score:70, trend:3},
+    {rk:8, av:'何', name:'何静', role:'全栈', adopt:57, ratio:46, deleg:17, eff:1.7, score:68, trend:1},
+    {rk:9, av:'吕', name:'吕超', role:'算法', adopt:55, ratio:45, deleg:16, eff:1.6, score:66, trend:2},
+    {rk:10,av:'马', name:'马丽', role:'前端', adopt:53, ratio:43, deleg:17, eff:1.7, score:63, trend:6},
+    {rk:11,av:'朱', name:'朱军', role:'后端', adopt:51, ratio:42, deleg:15, eff:1.6, score:61, trend:-1},
+    {rk:12,av:'胡', name:'胡伟', role:'全栈', adopt:49, ratio:40, deleg:16, eff:1.6, score:58, trend:2},
+    {rk:13,av:'秦', name:'秦岚', role:'测试', adopt:47, ratio:38, deleg:12, eff:1.5, score:56, trend:1},
+    {rk:14,av:'许', name:'许峰', role:'数据', adopt:45, ratio:37, deleg:13, eff:1.5, score:54, trend:-2},
   ]},
-  low:{cls:'low',size:3,page:0,people:[
-    {rk:15,av:'陈',name:'陈强',role:'后端',adopt:41,ratio:34,deleg:13,eff:1.5,score:48,trend:3},
-    {rk:16,av:'赵',name:'赵敏',role:'前端',adopt:37,ratio:31,deleg:12,eff:1.5,score:44,trend:-2},
-    {rk:17,av:'周',name:'周婷',role:'测试',adopt:33,ratio:27,deleg:11,eff:1.4,score:39,trend:1},
+  low: { cls:'tier-low', size:4, page:0, people:[
+    {rk:15,av:'陈', name:'陈强', role:'后端', adopt:41, ratio:34, deleg:13, eff:1.5, score:48, trend:3},
+    {rk:16,av:'赵', name:'赵敏', role:'前端', adopt:37, ratio:31, deleg:12, eff:1.5, score:44, trend:-2},
+    {rk:17,av:'周', name:'周婷', role:'测试', adopt:33, ratio:27, deleg:11, eff:1.4, score:39, trend:1},
   ]},
 };
-function rowHTML(p,cls){
-  const up=p.trend>=0;
-  return `<div class="row ${cls}"><div class="rk">${p.rk}</div><div class="av">${p.av}</div>`+
-    `<div class="who"><div class="n">${p.name}</div><div class="r">${p.role}</div></div>`+
-    `<div class="lev"><div>采纳 <b>${p.adopt}%</b> · AI 占比 <b>${p.ratio}%</b></div>`+
-    `<div class="l2">委派 ${p.deleg}/月 · 提效 ${p.eff}×</div></div>`+
-    `<div><div class="sc"><span class="s">${p.score}</span><span class="t ${up?'up':'down'}">${up?'↗':'↘'} ${up?'+':''}${p.trend}%</span></div>`+
-    `<div class="track"><div class="fill" style="width:${p.score}%"></div></div></div></div>`;
-}
+
+const rowHTML = p => {
+  const up = p.trend >= 0, none = p.trend === 0;
+  return `<div class="row">
+    <div class="rk">${String(p.rk).padStart(2,'0')}</div>
+    <div class="av">${p.av}</div>
+    <div class="who"><div class="n">${p.name}</div><div class="r">${p.role}</div></div>
+    <div class="lev"><div>采纳 <b>${p.adopt}%</b> · AI 占比 <b>${p.ratio}%</b></div>
+      <div class="l2">委派 ${p.deleg}/月 · 提效 ${p.eff}×</div></div>
+    <div class="scorecell">
+      <div class="stat"><span class="s">${p.score}</span>
+        <span class="t ${none ? '' : up ? 'up' : 'down'}">${none ? '—' : (up ? '▲ ' : '▼ ') + Math.abs(p.trend)}</span></div>
+      <div class="track"><i class="blocks" style="width:${p.score}%"></i></div>
+    </div>
+  </div>`;
+};
+
 function renderTier(key){
-  const t=TIERS[key], total=t.people.length, pages=Math.ceil(total/t.size);
-  const start=t.page*t.size, slice=t.people.slice(start,start+t.size);
-  document.getElementById('tier-'+key).innerHTML=slice.map(p=>rowHTML(p,t.cls)).join('');
-  let nums='';
-  for(let i=0;i<pages;i++) nums+=`<button class="pg${i===t.page?' on':''}" data-k="${key}" data-p="${i}">${i+1}</button>`;
-  document.getElementById('pager-'+key).innerHTML=
-    `<span class="cnt">共 ${total} 人</span>`+
-    `<div class="pgs">`+
-      `<button class="arw" data-k="${key}" data-d="-1" ${t.page===0?'disabled':''} aria-label="上一页">‹</button>`+
-      nums+
-      `<button class="arw" data-k="${key}" data-d="1" ${t.page>=pages-1?'disabled':''} aria-label="下一页">›</button>`+
-    `</div>`;
+  const t = TIERS[key], total = t.people.length, pages = Math.ceil(total / t.size);
+  const slice = t.people.slice(t.page * t.size, t.page * t.size + t.size);
+  $('#tier-' + key).innerHTML = slice.map(rowHTML).join('');
+
+  let nums = '';
+  for (let i = 0; i < pages; i++)
+    nums += `<button data-k="${key}" data-p="${i}"${i === t.page ? ' aria-current="page"' : ''}>${i + 1}</button>`;
+
+  /* One page needs no pager at all — the band heading already states
+     the tier's headcount, so this would just repeat it. `.pager:empty`
+     drops the rule and padding with it. */
+  $('#pager-' + key).innerHTML = pages < 2 ? '' :
+    `<span class="cnt">${t.page * t.size + 1}–${Math.min(total, (t.page + 1) * t.size)} / ${total} 人</span>
+     <div class="pgs">
+       <button data-k="${key}" data-d="-1" ${t.page === 0 ? 'disabled' : ''} aria-label="上一页">‹</button>
+       ${nums}
+       <button data-k="${key}" data-d="1" ${t.page >= pages - 1 ? 'disabled' : ''} aria-label="下一页">›</button>
+     </div>`;
 }
-document.addEventListener('click',e=>{
-  const a=e.target.closest('.arw'), p=e.target.closest('.pg');
-  if(a&&!a.disabled){const t=TIERS[a.dataset.k]; t.page+=(+a.dataset.d); renderTier(a.dataset.k);}
-  else if(p){const t=TIERS[p.dataset.k]; t.page=(+p.dataset.p); renderTier(p.dataset.k);}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('.pgs button');
+  if (!b || b.disabled) return;
+  const t = TIERS[b.dataset.k];
+  if (b.dataset.d) t.page += +b.dataset.d; else t.page = +b.dataset.p;
+  renderTier(b.dataset.k);
 });
 renderTier('mid'); renderTier('low');
 
-const WDATA={
-  token:{data:[72,74,78,76,82,85,88,92],warn:80,cur:92,flood:true},
-  conc :{data:[55,60,58,64,62,68,66,70],warn:75,cur:70,flood:false},
-  rpm  :{data:[70,82,80,86,88,90,86,98],warn:85,cur:98,flood:true},
-  tpm  :{data:[48,55,52,60,58,64,56,60],warn:85,cur:60,flood:false},
+/* ── WATER LEVEL: smooth area chart + crosshair tooltip ────── */
+const WDATA = {
+  token:{ label:'Token 水位', data:[72,74,78,76,82,85,88,92], warn:80, flood:true  },
+  conc :{ label:'并发水位',   data:[55,60,58,64,62,68,66,70], warn:75, flood:false },
+  rpm  :{ label:'RPM 水位',   data:[70,82,80,86,88,90,86,98], warn:85, flood:true  },
+  tpm  :{ label:'TPM 水位',   data:[48,55,52,60,58,64,56,60], warn:85, flood:false },
 };
-function renderWater(key){
-  const c=WDATA[key],W=580,H=250,x0=46,x1=560,y0=20,y1=210,lo=40,hi=100;
-  const xs=i=>x0+i/(c.data.length-1)*(x1-x0), ys=v=>y1-(v-lo)/(hi-lo)*(y1-y0);
-  const pts=c.data.map((v,i)=>[xs(i),ys(v)]);
-  const line=pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-  const grid=[40,60,80,100].map(v=>`<line x1="${x0}" y1="${ys(v)}" x2="${x1}" y2="${ys(v)}" stroke="#232326"/><text x="${x0-8}" y="${ys(v)+3}" text-anchor="end" font-size="10" fill="#6E6E72">${v}%</text>`).join('');
-  const col=c.flood?'#E5484D':'#7CFF6B';
-  const dots=pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="${i===pts.length-1?4.5:2.6}" fill="${i===pts.length-1?col:'#7CFF6B'}"/>`).join('');
-  document.getElementById('wchart').innerHTML=`<svg width="100%" viewBox="0 0 ${W} ${H}">
-    <rect x="${x0}" y="${y0}" width="${x1-x0}" height="${ys(90)-y0}" fill="rgba(229,72,77,.12)"/>
-    <rect x="${x0}" y="${ys(90)}" width="${x1-x0}" height="${y1-ys(90)}" fill="rgba(255,255,255,.02)"/>
-    ${grid}
-    <polygon points="${x0},${y1} ${line} ${x1},${y1}" fill="rgba(124,255,107,.08)"/>
-    <line x1="${x0}" y1="${ys(c.warn)}" x2="${x1}" y2="${ys(c.warn)}" stroke="#E5484D" stroke-width="1.5" stroke-dasharray="5,4"/>
-    <text x="${x1}" y="${ys(c.warn)-6}" text-anchor="end" font-size="10" fill="#FF8A8F" font-weight="600">预警 ${c.warn}%</text>
-    <polyline points="${line}" fill="none" stroke="#7CFF6B" stroke-width="2.2"/>${dots}
-    <text x="${pts[pts.length-1][0]-6}" y="${pts[pts.length-1][1]-10}" text-anchor="end" font-size="13" font-weight="700" fill="${col}">${c.cur}%</text>
-  </svg>`;
-  document.getElementById('wstatus').innerHTML=`<span class="pill ${c.flood?'flood':'safe'}">当前 ${c.cur}% · ${c.flood?'洪水位':'安全'}</span>`;
+const DAYS = ['07-21','07-22','07-23','07-24','07-25','07-26','07-27','07-28'];
+let CURRENT_METRIC = 'token', GEO = null;
+
+/* Catmull-Rom → cubic bezier, tension damped to avoid overshoot */
+function smooth(pts){
+  if (pts.length < 3) return 'M' + pts.map(p => p.join(',')).join(' L');
+  const T = 0.62;
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++){
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    d += ` C${(p1[0] + (p2[0] - p0[0]) / 6 * T).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6 * T).toFixed(1)}`
+      +  ` ${(p2[0] - (p3[0] - p1[0]) / 6 * T).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6 * T).toFixed(1)}`
+      +  ` ${p2[0]},${p2[1]}`;
+  }
+  return d;
 }
-document.querySelectorAll('#wtabs .subtab').forEach(s=>{s.onclick=()=>{
-  document.querySelectorAll('#wtabs .subtab').forEach(x=>x.classList.remove('on'));
-  s.classList.add('on'); renderWater(s.dataset.m);
-};});
+
+function renderWater(key){
+  CURRENT_METRIC = key;
+  const c = WDATA[key];
+  const W = 600, H = 268, x0 = 44, x1 = 588, y0 = 16, y1 = 218, lo = 40, hi = 100;
+  const xs = i => x0 + i / (c.data.length - 1) * (x1 - x0);
+  const ys = v => y1 - (v - lo) / (hi - lo) * (y1 - y0);
+  const pts = c.data.map((v, i) => [+xs(i).toFixed(1), +ys(v).toFixed(1)]);
+  const cur = c.data[c.data.length - 1];
+  const line = smooth(pts);
+  const tone = c.flood ? '#D03B3B' : '#8C9DFF';
+
+  const grid = [40,60,80,100].map(v =>
+    `<line x1="${x0}" y1="${ys(v)}" x2="${x1}" y2="${ys(v)}" stroke="rgba(255,255,255,.05)"/>
+     <text x="${x0 - 10}" y="${ys(v) + 3.5}" text-anchor="end" font-size="10" fill="#626C85" font-family="var(--mono)">${v}%</text>`).join('');
+
+  /* label every other day, but drop the second-to-last so it can't
+     crowd the final tick — that one always carries the callout */
+  const last = DAYS.length - 1;
+  const xlab = DAYS.map((d, i) => (i % 2 === 0 && i < last - 1) || i === last
+    ? `<text x="${xs(i)}" y="${y1 + 20}" text-anchor="middle" font-size="10" fill="#626C85" font-family="var(--mono)">${d}</text>` : '').join('');
+
+  $('#wchart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" id="wsvg">
+    <defs>
+      <linearGradient id="fillG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="rgba(140,157,255,.30)"/><stop offset="1" stop-color="rgba(140,157,255,0)"/>
+      </linearGradient>
+      <clipPath id="plotClip"><rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}"/></clipPath>
+    </defs>
+
+    <rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${ys(c.warn) - y0}" fill="rgba(208,59,59,.09)"/>
+    ${grid}
+
+    <g clip-path="url(#plotClip)">
+      <path d="${line} L${x1},${y1} L${x0},${y1} Z" fill="url(#fillG)"/>
+      <path d="${line}" fill="none" stroke="#8C9DFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+            style="filter:drop-shadow(0 2px 10px rgba(140,157,255,.45))"/>
+    </g>
+
+    <line x1="${x0}" y1="${ys(c.warn)}" x2="${x1}" y2="${ys(c.warn)}" stroke="#D03B3B" stroke-width="1.5" stroke-dasharray="5,5"/>
+    <text x="${x1}" y="${ys(c.warn) - 8}" text-anchor="end" font-size="10.5" fill="#F08C8C" font-family="var(--mono)" font-weight="500">预警 ${c.warn}%</text>
+
+    <line id="hair" x1="0" y1="${y0}" x2="0" y2="${y1}" stroke="rgba(255,255,255,.22)" stroke-width="1" opacity="0"/>
+    <circle id="hdot" r="5" fill="${tone}" stroke="#0F1320" stroke-width="2" opacity="0"/>
+
+    <circle cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="9" fill="${tone}" opacity=".2"/>
+    <circle cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="4.5" fill="${tone}" stroke="#0F1320" stroke-width="2"/>
+    <text x="${pts.at(-1)[0] - 10}" y="${pts.at(-1)[1] - 14}" text-anchor="end" font-size="14" font-weight="500"
+          fill="${tone}" font-family="var(--mono)">${cur}%</text>
+
+    <line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="rgba(255,255,255,.1)"/>
+    ${xlab}
+    <rect id="hit" x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="transparent" style="cursor:crosshair"/>
+  </svg>`;
+
+  $('#wstatus').innerHTML = `<span class="pill ${c.flood ? 'flood' : 'safe'}"><span class="dot"></span>${cur}% · ${c.flood ? '洪水位' : '安全'}</span>`;
+
+  GEO = { pts, W, H, x0, x1, data:c.data, warn:c.warn };
+  bindHover();
+}
+
+function bindHover(){
+  const svg = $('#wsvg'), hit = $('#hit'), hair = $('#hair'), dot = $('#hdot'), tip = $('#wtip'), plot = $('#wplot');
+  const show = on => { hair.style.opacity = dot.style.opacity = on ? 1 : 0; tip.style.opacity = on ? 1 : 0; };
+
+  const move = ev => {
+    const box = svg.getBoundingClientRect();
+    const px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - box.left) / box.width * GEO.W;
+    let idx = 0, best = 1e9;
+    GEO.pts.forEach((p, i) => { const d = Math.abs(p[0] - px); if (d < best) { best = d; idx = i; } });
+    const p = GEO.pts[idx], v = GEO.data[idx], over = v >= GEO.warn;
+
+    hair.setAttribute('x1', p[0]); hair.setAttribute('x2', p[0]);
+    dot.setAttribute('cx', p[0]); dot.setAttribute('cy', p[1]);
+    dot.setAttribute('fill', over ? '#D03B3B' : '#8C9DFF');
+    tip.innerHTML = `<div class="d">${DAYS[idx]}</div><div class="v">${v}%</div>
+      <div class="s" style="color:${over ? '#F08C8C' : '#5FD35F'}">${over ? '▲ 超出预警线' : '低于预警线'}</div>`;
+    const pbox = plot.getBoundingClientRect();
+    tip.style.left = (box.left - pbox.left + p[0] / GEO.W * box.width) + 'px';
+    tip.style.top  = (box.top  - pbox.top  + p[1] / GEO.H * box.height - 14) + 'px';
+    show(true);
+  };
+
+  hit.addEventListener('mousemove', move);
+  hit.addEventListener('touchmove', e => { e.preventDefault(); move(e); }, {passive:false});
+  hit.addEventListener('mouseleave', () => show(false));
+  hit.addEventListener('touchend', () => show(false));
+}
+
+$$('#wtabs .subtab').forEach(s => s.addEventListener('click', () => {
+  $$('#wtabs .subtab').forEach(x => x.setAttribute('aria-pressed', 'false'));
+  s.setAttribute('aria-pressed', 'true');
+  renderWater(s.dataset.m);
+}));
 renderWater('token');
 
-const COST=[['个人','#7CFF6B',33,'$1,274,336'],['Claude Code','#4C8CFF',31,'$1,238,335'],['InfCode','#9A6BFF',23,'$899,986'],['OpenCode','#22c1c3',8,'$311,987'],['Codex','#F2B84B',2,'$78,000'],['DeepMap','#4e9e45',2,'$78,000'],['其他 4 项','#3a3a40',1,'$19,199']];
-let acc=0; const segs=COST.map(c=>{const a=acc;acc+=c[2];return `${c[1]} ${a}% ${acc}%`;}).join(', ');
-document.getElementById('donut').style.background=`conic-gradient(${segs})`;
-document.getElementById('clist').innerHTML=COST.map(c=>`<div class="cr"><span class="cd" style="background:${c[1]}"></span><span class="cn">${c[0]}</span><span class="cp">${c[2]}%</span><span class="cv">${c[3]}</span></div>`).join('');
+/* ── FUNNEL: one continuous tapering silhouette ────────────────
+   Stage i is a trapezoid running from its own value down to the
+   next one, so the angle of its wall IS that step's loss: a near-
+   vertical wall means almost everything carried through, a wall
+   that cuts hard inward means the step shed a lot. Centred bars
+   encode the same numbers but throw that reading away, which is
+   the whole reason a funnel is shaped like a funnel.
+   The faint column behind is the intake at 100% — whatever of it
+   stays visible beside the shape is what fell out along the way. */
+const FUNNEL = [
+  { lab:'提问',     v:1000 },
+  { lab:'采纳',     v:720, conv:'72%', verb:'采纳'  },
+  { lab:'生成 PR',  v:590, conv:'82%', verb:'成 PR' },
+  { lab:'合入主干', v:450, conv:'76%', verb:'合入'  },
+];
+const FN_FILL = ['var(--o5)','var(--o4)','var(--o3)','var(--o2)'];
+const FN_INK  = ['#FFFFFF','#FFFFFF','#FFFFFF','#080A11'];
+
+function renderFunnel(){
+  const narrow = innerWidth <= 720;
+  /* Narrow drops the right-hand gutter and opens the gaps so the
+     step annotations have somewhere to sit; type is sized in viewBox
+     units, which shrink with the SVG, so it scales up to compensate. */
+  const c = narrow
+    ? { W:420, CX:210, WMAX:400, BH:86, GAP:36, PAD:8, gutter:false, inset:18, fLab:19, fNum:22, fAnn:15, r:9 }
+    : { W:860, CX:395, WMAX:640, BH:84, GAP:4,  PAD:8, gutter:true,  inset:24, fLab:14, fNum:19, fAnn:12, r:9, gx:760 };
+
+  const n = FUNNEL.length, max = FUNNEL[0].v;
+  const H = c.PAD * 2 + n * c.BH + (n - 1) * c.GAP;
+  const half = v => v / max * c.WMAX / 2;
+  const yTop = i => c.PAD + i * (c.BH + c.GAP);
+  const L = c.CX, R = c.r;
+
+  let ghosts = '', shapes = '', labels = '', notes = '';
+
+  for (let i = 0; i < n; i++){
+    const s = FUNNEL[i], yT = yTop(i), yB = yT + c.BH;
+    const hT = half(s.v), hB = half(FUNNEL[i + 1] ? FUNNEL[i + 1].v : s.v);
+
+    /* full-width backing for this stage — whatever of it shows past
+       the shape is what this step lost. Banded per stage rather than
+       one column so it survives the wide gaps the narrow layout needs
+       for its annotations. */
+    ghosts += `<rect x="${L - half(max)}" y="${yT}" width="${half(max) * 2}" height="${c.BH}" rx="6" fill="rgba(255,255,255,.05)"/>`;
+
+    const d = i === 0
+      /* soften the intake's top corners */
+      ? `M${L-hT+R},${yT} H${L+hT-R} A${R},${R} 0 0 1 ${L+hT},${yT+R} L${L+hB},${yB} H${L-hB} L${L-hT},${yT+R} A${R},${R} 0 0 1 ${L-hT+R},${yT} Z`
+      : i === n - 1
+        /* the outflow holds its width — it is what was kept */
+        ? `M${L-hT},${yT} H${L+hT} V${yB-R} A${R},${R} 0 0 1 ${L+hT-R},${yB} H${L-hT+R} A${R},${R} 0 0 1 ${L-hT},${yB-R} Z`
+        : `M${L-hT},${yT} H${L+hT} L${L+hB},${yB} H${L-hB} Z`;
+
+    shapes += `<path class="fn-stage" d="${d}" fill="${FN_FILL[i]}"><title>${s.lab} ${s.v.toLocaleString()}</title></path>`;
+
+    /* keep type inside the narrowest part of the stage, never on a wall */
+    const hMin = Math.min(hT, hB), midY = yT + c.BH / 2;
+    labels +=
+      `<text class="fn-lab" x="${(L - hMin + c.inset).toFixed(1)}" y="${midY}" dominant-baseline="central"
+             font-size="${c.fLab}" fill="${FN_INK[i]}">${s.lab}</text>
+       <text class="fn-num" x="${(L + hMin - c.inset).toFixed(1)}" y="${midY}" dominant-baseline="central"
+             text-anchor="end" font-size="${c.fNum}" fill="${FN_INK[i]}">${s.v.toLocaleString()}</text>`;
+
+    /* the step annotation belongs to the wall it explains */
+    const next = FUNNEL[i + 1];
+    if (!next) continue;
+    const loss = s.v - next.v;
+
+    if (c.gutter){
+      const gx = c.gx, edge = L + (hT + hB) / 2;
+      notes +=
+        `<line class="fn-lead" x1="${(edge + 10).toFixed(1)}" y1="${midY}" x2="${gx - 10}" y2="${midY}" stroke="#2A3350"/>
+         <text class="fn-ann"  x="${gx}" y="${midY - 3}" font-size="${c.fAnn}"><tspan class="pct">${next.conv}</tspan> ${next.verb}</text>
+         <text class="fn-loss" x="${gx}" y="${midY + 13}" font-size="${c.fAnn - 1}">流失 ${loss}</text>`;
+    } else {
+      notes +=
+        `<text class="fn-ann" x="${L}" y="${yB + c.GAP / 2 + 5}" text-anchor="middle" font-size="${c.fAnn}"><tspan class="pct">${next.conv}</tspan> ${next.verb} · 流失 ${loss}</text>`;
+    }
+  }
+
+  $('#funnel').innerHTML =
+    `<svg viewBox="0 0 ${c.W} ${H}" role="img"
+          aria-label="研发转化漏斗：提问 1,000 → 采纳 720 → 生成 PR 590 → 合入主干 450，端到端转化 45%">
+       ${ghosts}${shapes}${labels}${notes}
+     </svg>`;
+}
+renderFunnel();
+
+let fnTimer;
+addEventListener('resize', () => { clearTimeout(fnTimer); fnTimer = setTimeout(renderFunnel, 140); });
+
+/* ── COST: 100% composition bar + ranked table ─────────────────
+   7 sources exceed the categorical ceiling, so the bar seats the
+   four named leaders and folds the tail into one de-emphasis
+   block. Every source stays itemised in the rows below. */
+const COST = [
+  {n:'个人',        c:'var(--c1)',    p:33, v:'$1,274,336'},
+  {n:'Claude Code', c:'var(--c2)',    p:31, v:'$1,238,335'},
+  {n:'InfCode',     c:'var(--c3)',    p:23, v:'$899,986'  },
+  {n:'OpenCode',    c:'var(--c4)',    p:8,  v:'$311,987'  },
+  {n:'Codex',       c:'var(--c-rest)',p:2,  v:'$78,000', tail:true},
+  {n:'DeepMap',     c:'var(--c-rest)',p:2,  v:'$78,000', tail:true},
+  {n:'其他 4 项',    c:'var(--c-rest)',p:1,  v:'$19,199', tail:true},
+];
+const tailPct = COST.filter(d => d.tail).reduce((s, d) => s + d.p, 0);
+
+$('#compo').innerHTML =
+  COST.filter(d => !d.tail).map(d =>
+    `<i style="flex:${d.p};background:${d.c}" title="${d.n} · ${d.p}%"></i>`).join('') +
+  `<i style="flex:${tailPct};background:var(--c-rest)" title="其他 6 项 · ${tailPct}%"></i>`;
+
+$('#clist').innerHTML = COST.map(d => `<div class="cr">
+    <span class="cd" style="background:${d.c}"></span>
+    <span class="cn">${d.n}</span>
+    <span class="cbar"><i class="blocks" style="width:${d.p / 33 * 100}%;background:${d.c}"></i></span>
+    <span class="cp">${d.p}%</span>
+    <span class="cv">${d.v}</span>
+  </div>`).join('');
 </script>
 </body>
 </html>
