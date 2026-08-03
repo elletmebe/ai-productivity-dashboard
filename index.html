@@ -84,7 +84,9 @@ body::before{
 .wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:26px 32px 80px}
 
 /* ═══ HEADER ═══ */
-.masthead{display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap;margin:26px 0 24px}
+.masthead{display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;margin:26px 0 22px}
+.mh-id{min-width:0}
+.mh-ctl{margin-left:auto;display:flex;align-items:center;gap:16px;flex-shrink:0}
 .eyebrow{
   font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.22em;
   text-transform:uppercase;color:var(--ink3);margin-bottom:9px;
@@ -94,38 +96,62 @@ h1{
   font-size:clamp(26px,3.6vw,38px);font-weight:600;letter-spacing:-.025em;
   color:var(--ink);line-height:1.1;
 }
-.meta{margin-left:auto;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-.live{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.live{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--ink2);white-space:nowrap}
 .live .beacon{
   width:7px;height:7px;border-radius:50%;background:var(--good);flex-shrink:0;
   box-shadow:0 0 0 0 rgba(12,163,12,.55);animation:ping 2.4s ease-out infinite;
 }
 @keyframes ping{70%,100%{box-shadow:0 0 0 7px rgba(12,163,12,0)}}
-.scope{font-family:var(--mono);font-size:12px;color:var(--ink3);text-align:right;line-height:1.55}
+.scope{font-family:var(--mono);font-size:12px;color:var(--ink3);margin-top:11px}
 .scope b{color:var(--ink2);font-weight:500}
 
-/* ═══ TABS ═══ */
-.tabs{
-  position:relative;display:inline-flex;gap:2px;background:rgba(20,25,38,.7);
-  border:1px solid var(--edge);border-radius:999px;padding:5px;margin-bottom:22px;
+/* ═══ VIEW PICKER ═══
+   A labelled instrument field, not a pill: the caption names the
+   control and the value below it is the current reading. Built as a
+   real listbox rather than a native <select> so the panel can carry
+   the same glass as everything else — which puts the keyboard
+   contract (arrows / Enter / Esc / Home / End) on us to supply. */
+.viewpick{position:relative}
+.vp-btn{
+  display:flex;align-items:center;gap:16px;font:inherit;text-align:left;cursor:pointer;
+  min-width:190px;padding:8px 13px 9px 15px;
+  background:rgba(20,25,38,.72);border:1px solid var(--edge);border-radius:var(--r-md);
   backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
-  max-width:100%;overflow-x:auto;scrollbar-width:none;
+  transition:border-color .2s,background .2s;
 }
-.tabs::-webkit-scrollbar{display:none}
-.tab-glide{
-  position:absolute;top:5px;height:calc(100% - 10px);border-radius:999px;
-  background:var(--accent-wash);border:1px solid var(--accent-line);
-  transition:transform .34s cubic-bezier(.4,.9,.2,1),width .34s cubic-bezier(.4,.9,.2,1);
-  pointer-events:none;
+.vp-btn:hover{border-color:var(--edge-lit)}
+.vp-btn[aria-expanded="true"]{border-color:var(--accent-line);background:var(--accent-wash)}
+.vp-txt{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+.vp-cap{
+  font-family:var(--mono);font-size:9.5px;font-weight:500;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink3);
 }
-.tab{
-  position:relative;z-index:1;font:inherit;font-size:13.5px;font-weight:500;
-  color:var(--ink2);background:none;border:0;padding:9px 20px;border-radius:999px;
-  cursor:pointer;white-space:nowrap;transition:color .2s;
+.vp-now{font-size:14px;font-weight:600;color:var(--ink);letter-spacing:-.01em;white-space:nowrap}
+.vp-caret{width:11px;height:8px;color:var(--ink3);flex-shrink:0;transition:transform .22s,color .2s}
+.vp-btn[aria-expanded="true"] .vp-caret{transform:rotate(180deg);color:var(--accent)}
+
+.vp-menu{
+  position:absolute;top:calc(100% + 7px);right:0;min-width:100%;z-index:40;
+  list-style:none;padding:5px;margin:0;
+  background:rgba(16,20,33,.97);backdrop-filter:blur(24px);
+  border:1px solid var(--edge-lit);border-radius:var(--r-md);
+  box-shadow:0 22px 48px -18px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.06);
+  animation:vpIn .16s cubic-bezier(.2,.7,.3,1) both;
 }
-.tab:hover{color:var(--ink)}
-.tab[aria-selected="true"]{color:var(--ink);font-weight:600}
-.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.vp-menu[hidden]{display:none}
+.vp-menu:focus{outline:none}
+@keyframes vpIn{from{opacity:0;transform:translateY(-6px)}}
+.vp-menu li{
+  padding:9px 15px;border-radius:var(--r-sm);border:1px solid transparent;
+  font-size:13.5px;color:var(--ink2);cursor:pointer;white-space:nowrap;
+  transition:background .14s,color .14s;
+}
+.vp-menu li[aria-selected="true"]{
+  background:var(--accent-wash);border-color:var(--accent-line);color:var(--ink);font-weight:600;
+}
+/* keyboard cursor is a brightness step, so it can sit on top of the
+   current selection without either cue cancelling the other out */
+.vp-menu li.cursor{background:rgba(140,157,255,.22);color:var(--ink)}
 
 .view{display:none}
 .view.on{display:block;animation:rise .4s cubic-bezier(.2,.7,.3,1) both}
@@ -427,9 +453,11 @@ h1{
   .row .lev,.row .scorecell{padding-left:60px}
   .cr{grid-template-columns:11px 1fr 44px 100px;row-gap:6px}
   .cr .cbar{grid-column:2/-1}
+  /* picker drops to its own full-width row and the menu spans it */
   .masthead{gap:16px}
-  .meta{margin-left:0}
-  .scope{text-align:left}
+  .mh-ctl{margin-left:0;width:100%;justify-content:space-between;gap:12px}
+  .vp-btn{min-width:0;flex:1;max-width:250px}
+  .vp-menu{left:auto;right:0;min-width:250px;max-width:100%}
 }
 
 /* ═══ MOTION / FOCUS ═══ */
@@ -447,27 +475,38 @@ h1{
 <div class="wrap">
 
   <header class="masthead">
-    <div>
+    <div class="mh-id">
       <div class="eyebrow">Productivity <span>/</span> Ops</div>
       <h1>AI 生产力监控大盘</h1>
+      <div class="scope"><b>研发团队 · 17 人</b> · 2026 Q2 · 更新于 07-28</div>
     </div>
-    <div class="meta">
+
+    <div class="mh-ctl">
       <span class="live"><span class="beacon"></span>采集中</span>
-      <div class="scope"><b>研发团队 · 17 人</b><br>2026 Q2 · 更新于 07-28</div>
+
+      <div class="viewpick" id="viewpick">
+        <button class="vp-btn" id="vpBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="vpMenu">
+          <span class="vp-txt">
+            <span class="vp-cap">视图</span>
+            <span class="vp-now" id="vpNow">人力排行榜</span>
+          </span>
+          <svg class="vp-caret" viewBox="0 0 12 8" aria-hidden="true">
+            <path d="M1 1.6 6 6.4 11 1.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <ul class="vp-menu" id="vpMenu" role="listbox" aria-label="选择视图" tabindex="-1" hidden>
+          <li id="vp-talent" role="option" data-v="talent" aria-selected="true">人力排行榜</li>
+          <li id="vp-water"  role="option" data-v="water"  aria-selected="false">流量水位</li>
+          <li id="vp-funnel" role="option" data-v="funnel" aria-selected="false">转化漏斗</li>
+          <li id="vp-roi"    role="option" data-v="roi"    aria-selected="false">投入产出</li>
+          <li id="vp-cost"   role="option" data-v="cost"   aria-selected="false">成本分布</li>
+        </ul>
+      </div>
     </div>
   </header>
 
-  <div class="tabs" role="tablist" id="tabs">
-    <div class="tab-glide" id="glide"></div>
-    <button class="tab" role="tab" aria-selected="true"  data-v="talent">人力排行榜</button>
-    <button class="tab" role="tab" aria-selected="false" data-v="water">流量水位</button>
-    <button class="tab" role="tab" aria-selected="false" data-v="funnel">转化漏斗</button>
-    <button class="tab" role="tab" aria-selected="false" data-v="roi">投入产出</button>
-    <button class="tab" role="tab" aria-selected="false" data-v="cost">成本分布</button>
-  </div>
-
   <!-- ══ 1. TALENT ══ -->
-  <section class="view on" id="v-talent" role="tabpanel">
+  <section class="view on" id="v-talent" aria-label="人力排行榜">
     <div class="kpis">
       <div class="kpi">
         <div class="k">AI 潜力均分</div>
@@ -540,7 +579,7 @@ h1{
   </section>
 
   <!-- ══ 2. WATER ══ -->
-  <section class="view" id="v-water" role="tabpanel">
+  <section class="view" id="v-water" aria-label="流量水位">
     <div class="grid2">
       <div class="panel">
         <div class="phead">
@@ -587,7 +626,7 @@ h1{
   </section>
 
   <!-- ══ 3. FUNNEL ══ -->
-  <section class="view" id="v-funnel" role="tabpanel">
+  <section class="view" id="v-funnel" aria-label="转化漏斗">
     <div class="panel">
       <div class="phead"><div><h2>SDLC · 研发转化漏斗</h2><div class="sub">锥壁斜率 = 该步流失，底色为 100% 进料量</div></div><span class="tag">近 7 日</span></div>
       <div class="funnel" id="funnel"></div>
@@ -596,7 +635,7 @@ h1{
   </section>
 
   <!-- ══ 4. ROI ══ -->
-  <section class="view" id="v-roi" role="tabpanel">
+  <section class="view" id="v-roi" aria-label="投入产出">
     <div class="panel">
       <div class="phead"><div><h2>投入产出杠杆</h2><div class="sub">支点 = AI 赋能。投入臂越长，同样的钱撬起的代码越多</div></div><span class="tag">2026 Q2</span></div>
       <div class="lever">
@@ -660,7 +699,7 @@ h1{
   </section>
 
   <!-- ══ 5. COST ══ -->
-  <section class="view" id="v-cost" role="tabpanel">
+  <section class="view" id="v-cost" aria-label="成本分布">
     <div class="panel">
       <div class="phead"><div><h2>成本分布 · 来源</h2><div class="sub">按消耗来源拆分，前四项单列，尾部合并</div></div><span class="tag">05-27 → 06-26</span></div>
       <div class="compo">
@@ -698,19 +737,78 @@ const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
   $('#ribbon').innerHTML = strip + strip;
 })();
 
-/* ── TABS with sliding indicator ───────────────────────────── */
-const tabs = $$('#tabs .tab'), glide = $('#glide');
-function moveGlide(el){ glide.style.width = el.offsetWidth + 'px'; glide.style.transform = `translateX(${el.offsetLeft - 5}px)`; }
-tabs.forEach(t => t.addEventListener('click', () => {
-  tabs.forEach(x => x.setAttribute('aria-selected', 'false'));
-  $$('.view').forEach(v => v.classList.remove('on'));
-  t.setAttribute('aria-selected', 'true');
-  $('#v-' + t.dataset.v).classList.add('on');
-  moveGlide(t);
-  if (t.dataset.v === 'water') renderWater(CURRENT_METRIC);
-}));
-addEventListener('resize', () => moveGlide($('#tabs .tab[aria-selected="true"]')));
-requestAnimationFrame(() => moveGlide(tabs[0]));
+/* ── VIEW PICKER (listbox) ─────────────────────────────────── */
+const vpBtn = $('#vpBtn'), vpMenu = $('#vpMenu'), vpNow = $('#vpNow');
+const vpItems = $$('#vpMenu li');
+let vpOpen = false, vpCursor = 0, VIEW = 'talent';
+
+function showView(key){
+  VIEW = key;
+  $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + key));
+  vpItems.forEach(li => {
+    const on = li.dataset.v === key;
+    li.setAttribute('aria-selected', String(on));
+    if (on) vpNow.textContent = li.textContent;
+  });
+  /* both of these size themselves off live layout, so they have to be
+     re-measured once their panel is actually on screen */
+  if (key === 'water')  renderWater(CURRENT_METRIC);
+  if (key === 'funnel') renderFunnel();
+}
+
+function vpSetCursor(i){
+  vpCursor = (i + vpItems.length) % vpItems.length;
+  vpItems.forEach((li, n) => li.classList.toggle('cursor', n === vpCursor));
+  vpMenu.setAttribute('aria-activedescendant', vpItems[vpCursor].id);
+}
+
+function vpShow(){
+  vpOpen = true;
+  vpMenu.hidden = false;
+  vpBtn.setAttribute('aria-expanded', 'true');
+  vpSetCursor(vpItems.findIndex(li => li.dataset.v === VIEW));
+  vpMenu.focus();
+}
+
+function vpHide(returnFocus){
+  if (!vpOpen) return;
+  vpOpen = false;
+  vpMenu.hidden = true;
+  vpBtn.setAttribute('aria-expanded', 'false');
+  vpMenu.removeAttribute('aria-activedescendant');
+  vpItems.forEach(li => li.classList.remove('cursor'));
+  if (returnFocus) vpBtn.focus();
+}
+
+vpBtn.addEventListener('click', () => vpOpen ? vpHide(true) : vpShow());
+vpBtn.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){ e.preventDefault(); vpShow(); }
+});
+
+vpMenu.addEventListener('keydown', e => {
+  switch (e.key){
+    case 'Escape':    e.preventDefault(); vpHide(true); break;
+    case 'ArrowDown': e.preventDefault(); vpSetCursor(vpCursor + 1); break;
+    case 'ArrowUp':   e.preventDefault(); vpSetCursor(vpCursor - 1); break;
+    case 'Home':      e.preventDefault(); vpSetCursor(0); break;
+    case 'End':       e.preventDefault(); vpSetCursor(vpItems.length - 1); break;
+    case 'Enter':
+    case ' ':         e.preventDefault(); showView(vpItems[vpCursor].dataset.v); vpHide(true); break;
+    case 'Tab':       vpHide(false); break;
+  }
+});
+
+vpMenu.addEventListener('click', e => {
+  const li = e.target.closest('li');
+  if (li){ showView(li.dataset.v); vpHide(true); }
+});
+vpMenu.addEventListener('mousemove', e => {
+  const li = e.target.closest('li');
+  if (li) vpSetCursor(vpItems.indexOf(li));
+});
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest('#viewpick')) vpHide(false);
+});
 
 /* ── KPI count-up ──────────────────────────────────────────── */
 $$('[data-count]').forEach(el => {
