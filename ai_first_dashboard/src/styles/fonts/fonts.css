@@ -1,0 +1,6 @@
+/* Bundled InfOne brand fonts. Licenses are stored beside these files. */
+@font-face { font-family: "Sora"; src: url("./Sora-500.ttf") format("truetype"); font-style: normal; font-weight: 500; font-display: swap; }
+@font-face { font-family: "Sora"; src: url("./Sora-600.ttf") format("truetype"); font-style: normal; font-weight: 600; font-display: swap; }
+@font-face { font-family: "Sora"; src: url("./Sora-700.ttf") format("truetype"); font-style: normal; font-weight: 700; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("./IBMPlexMono-400.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("./IBMPlexMono-500.ttf") format("truetype"); font-style: normal; font-weight: 500; font-display: swap; }

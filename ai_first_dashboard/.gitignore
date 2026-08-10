@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+
+# ── 不入公开仓库的内部材料 ────────────────────────────────────
+# 本仓库是 public。以下两项属于公司内部资料，只保留在本地：
+#   1. PRD 提案（含指标口径、组织结构、竞品对比与实名批注）
+#   2. InfOne 设计规范包 —— 它有自己的内部托管仓库（走 MR 审核发布），
+#      不在这里二次分发；运行时真正需要的 tokens.css / fonts / assets
+#      已经复制进 src/，那部分照常入库。
+*.pdf
+infone-design-spec-feat-infone/
