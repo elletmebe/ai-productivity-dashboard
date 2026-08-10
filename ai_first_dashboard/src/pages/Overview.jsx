@@ -7,10 +7,10 @@
    是 DESIGN.md 原则 1 的唯一例外）。 */
 import React from "react";
 import {
-  PageHeader, Card, CardHead, MetricStrip, Button, StatusChip,
+  Card, CardHead, MetricStrip, Button, StatusChip,
   TokenMeter, TrendDelta, Divider, compact, nf,
 } from "../ds/index.js";
-import { BoardActions, ScopeTag, KV } from "./shared.jsx";
+import { Section, SECTION_IDS, KV } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import { ENTERPRISE, MY_TEAM, insightsFor, DAU_SPARK, DAA_SPARK, UPDATED_AT } from "../data/mock.js";
 
@@ -28,15 +28,7 @@ export default function Overview({ ctx }) {
   const decisions = insights.filter((i) => i.kind === "decision");
 
   return (
-    <>
-      <PageHeader
-        title="AI First 概览"
-        tags={<ScopeTag scope={ctx.scope} />}
-        meta={`更新于 ${UPDATED_AT}`}
-        description="Agent 视角重构的看板：先给决策依据，再给风险，指标详情下钻到对应模块。"
-        actions={<BoardActions ctx={ctx} range={false} />}
-      />
-
+    <Section id={SECTION_IDS.overview} title="AI First 概览">
       <MetricStrip
         animate
         items={[
@@ -100,7 +92,7 @@ export default function Overview({ ctx }) {
             showTotal={false}
           />
           <Button variant="link" icon="ri-arrow-right-line" iconPosition="right"
-                  onClick={() => ctx.go({ tab: ctx.scope, page: "adoption" })}>
+                  onClick={() => ctx.go("adoption")}>
             查看应用情况
           </Button>
         </Card>
@@ -117,12 +109,12 @@ export default function Overview({ ctx }) {
             <KV label={M.delivery.label} value={`${nf(Math.round(ENTERPRISE.delivery * k))} MR`} />
           </div>
           <Button variant="link" icon="ri-arrow-right-line" iconPosition="right"
-                  onClick={() => ctx.go({ tab: ctx.scope, page: "funnel" })}>
+                  onClick={() => ctx.go("funnel")}>
             查看转化漏斗
           </Button>
         </Card>
       </div>
-    </>
+    </Section>
   );
 }
 
@@ -156,7 +148,7 @@ function InsightRow({ item, ctx }) {
           依据 · {item.basis}
         </span>
       </div>
-      <Button variant="link" onClick={() => ctx.go({ ...item.target, tab: ctx.scope })}
+      <Button variant="link" onClick={() => ctx.go(item.target.page, item.target)}
               style={{ flexShrink: 0, marginTop: 2 }}>
         {item.action}
       </Button>

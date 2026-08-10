@@ -7,10 +7,10 @@
    （活跃度热力，整屏唯一一处）+ 状态色（较上月 / 距目标的涨跌）。 */
 import React from "react";
 import {
-  PageHeader, Card, CardHead, Heatgrid, HeatLegend, TokenMeter,
+  Card, CardHead, Heatgrid, HeatLegend, TokenMeter,
   TrendDelta, Progress, nf,
 } from "../ds/index.js";
-import { BoardActions, ScopeTag, InsetNote, KV } from "./shared.jsx";
+import { Section, SECTION_IDS, InsetNote, KV } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import {
   ENTERPRISE, MY_TEAM, WEEKDAYS, ACTIVITY_GRID, ACTIVITY_PEAK, UPDATED_AT,
@@ -60,15 +60,7 @@ export default function Adoption({ ctx }) {
   const [gridRef, cell] = useCellSize();
 
   return (
-    <>
-      <PageHeader
-        title="AI 应用情况分析"
-        tags={<ScopeTag scope={ctx.scope} />}
-        meta={`更新于 ${UPDATED_AT}`}
-        description="覆盖率回答「多少人已经在用」，活跃度分布回答「他们什么时候用」。"
-        actions={<BoardActions ctx={ctx} />}
-      />
-
+    <Section id={SECTION_IDS.adoption} title="AI 应用情况分析">
       <Card>
         <CardHead
           title={team ? "团队 AI 覆盖率" : M.coverage.label}
@@ -164,6 +156,6 @@ export default function Adoption({ ctx }) {
           <KV label="集中区间" value="09:00–12:00 与 14:00–18:00 合计占 68.4%" />
         </div>
       </Card>
-    </>
+    </Section>
   );
 }

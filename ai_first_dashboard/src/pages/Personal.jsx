@@ -16,10 +16,10 @@
    时间轴当前月节点）+ 分类（仓库主语言 Tag）。 */
 import React from "react";
 import {
-  PageHeader, Card, CardHead, MetricStrip, Heatgrid, HeatLegend,
+  Card, CardHead, MetricStrip, Heatgrid, HeatLegend,
   Progress, Tag, Button, nf, compactTokens,
 } from "../ds/index.js";
-import { RoleSwitch, InsetNote } from "./shared.jsx";
+import { InsetNote } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import {
   ME, CONTRIB_DAYS, CONTRIB_TOTAL, CONTRIB_RANGE,
@@ -40,7 +40,7 @@ function usageLevel(pct) {
   return { tone: "accent", label: "正常消耗" };
 }
 
-export default function Personal({ ctx }) {
+export default function Personal() {
   const calendar = React.useMemo(() => {
     const out = [];
     for (let dow = 0; dow < 7; dow++) {
@@ -56,13 +56,6 @@ export default function Personal({ ctx }) {
 
   return (
     <>
-      <PageHeader
-        title="个人看板"
-        tags={<Tag tone="cat2" icon="ri-user-3-line">{ME.name}</Tag>}
-        meta={`${ME.team} · ${ME.account} · 更新于 ${UPDATED_AT}`}
-        description="成员视角只看本人数据；管理员切换到企业 / 团队看板可看全员。"
-        actions={<RoleSwitch ctx={ctx} />}
-      />
 
       {/* ① 五张统计卡 —— 通栏，五项才排得进一行（PRD 示意图是一行五张）。
           DESIGN.md 视觉预算建议 3–4 项，MetricStrip 的组件声明允许 3–5 项；

@@ -11,10 +11,10 @@
    （公式表 inset）。本页不用强度色 —— 强度色整屏 ≤1 处，已给 AI 应用分析页。 */
 import React from "react";
 import {
-  PageHeader, Card, CardHead, Chart, Segmented, Divider,
+  Card, CardHead, Chart, Segmented, Divider,
   TrendDelta, compact, nf,
 } from "../ds/index.js";
-import { BoardActions, ScopeTag, InsetNote, KV } from "./shared.jsx";
+import { Section, SECTION_IDS, InsetNote, KV } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import { FUNNEL_SCOPES, funnelOf, ROI_TREND, ENTERPRISE, UPDATED_AT } from "../data/mock.js";
 import { rangeDays } from "./shared.jsx";
@@ -44,15 +44,7 @@ export default function FunnelRoi({ ctx }) {
   const roi = ret / invest;
 
   return (
-    <>
-      <PageHeader
-        title="SDLC / ROI 转化漏斗"
-        tags={<ScopeTag scope={ctx.scope} />}
-        meta={`更新于 ${UPDATED_AT}`}
-        description="漏斗回答「AI 写的代码最后活下来多少」，ROI 趋势回答「这些代码值不值这笔钱」。"
-        actions={<BoardActions ctx={ctx} />}
-      />
-
+    <Section id={SECTION_IDS.funnel} title="SDLC / ROI 转化漏斗">
       {/* ── Part 1 · SDLC 漏斗 ───────────────────────────────── */}
       <Card>
         <CardHead
@@ -150,7 +142,7 @@ export default function FunnelRoi({ ctx }) {
           <KV label="杠杆" value={`每 ¥1 撬动 ${roi.toFixed(1)} 行留存代码`} />
         </div>
       </Card>
-    </>
+    </Section>
   );
 }
 

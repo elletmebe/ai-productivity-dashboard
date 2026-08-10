@@ -10,9 +10,9 @@
    状态（两类信号 Banner）+ 表面层次（口径 inset）。 */
 import React from "react";
 import {
-  PageHeader, Card, CardHead, Chart, Segmented, DataTable, compact, nf,
+  Card, CardHead, Chart, Segmented, DataTable, compact, nf,
 } from "../ds/index.js";
-import { BoardActions, ScopeTag, InsetNote } from "./shared.jsx";
+import { Section, SECTION_IDS, InsetNote } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import { MODELS, REPOS, spendSeries, MY_TEAM, ENTERPRISE, UPDATED_AT } from "../data/mock.js";
 import { rangeDays } from "./shared.jsx";
@@ -55,15 +55,7 @@ export default function Consumption({ ctx }) {
     s + (src ? src.reduce((a, x) => a + (r[x.key] || 0), 0) : r.total), 0);
 
   return (
-    <>
-      <PageHeader
-        title="消耗来源分析"
-        tags={<ScopeTag scope={ctx.scope} />}
-        meta={`from tokenhub · 更新于 ${UPDATED_AT}`}
-        description="同一张图三个视角：总览看总量，模型看结构，工程看归属。"
-        actions={<BoardActions ctx={ctx} />}
-      />
-
+    <Section id={SECTION_IDS.consumption} title="消耗来源分析">
       <Card>
         <CardHead
           title={dim === "model" ? M.modelShare.label : dim === "repo" ? M.repoShare.label : "每日消耗总览"}
@@ -134,6 +126,6 @@ export default function Consumption({ ctx }) {
           />
         </Card>
       )}
-    </>
+    </Section>
   );
 }

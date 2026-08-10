@@ -1,16 +1,26 @@
-/* shared.jsx — 页面级控件与跨页复用片段。
-   DESIGN.md 页面骨架：角色/环境/租户切换、时间范围、页面级主按钮都属于
-   PageHeader 右侧，放进顶栏会让它看起来全局生效。 */
+/* shared.jsx — 页面级控件与跨区块复用片段。
+   DESIGN.md D 档禁令：账户与通知只在导轨底部；面包屑、时间范围、
+   角色/环境切换仍属 PageHeader，不上移进导轨。 */
 import React from "react";
 import { Segmented, Tag, Tooltip } from "../ds/index.js";
 
-/** 角色切换 —— PRD 3.4「管理员可查看全团队的数据，成员仅可查看本人的数据」。 */
-export function RoleSwitch({ ctx }) {
+/* ── 权限档位 ───────────────────────────────────────────────────
+   PRD 3「权限控制：一级管理看板（全局）- 二级管理看板（团队或部门）-
+   个人看板」是**账号权限层级，不是导航层级** —— 只有一个 Dashboard，
+   看到哪一档由账号决定。这里的切换器是演示用的「模拟登录身份」，
+   真实产品里由后端下发权限，界面上不会有这个开关。 */
+export const ROLES = {
+  enterprise: { label: "企业管理员", account: "admin@infone.ai", scope: "enterprise" },
+  team: { label: "团队管理员", account: "lead@infone.ai", scope: "team" },
+  member: { label: "成员", account: "chen@infone.ai", scope: "member" },
+};
+
+export function PermissionSwitch({ ctx }) {
   return (
-    <Tooltip text="管理员可查看全团队数据；成员仅可查看本人数据。切换后顶栏可见的一级看板随之变化。">
+    <Tooltip text="模拟登录身份。企业管理员看全局大盘，团队管理员看本团队，成员只看本人数据 —— 真实产品由账号权限下发，界面上没有这个开关。">
       <Segmented
         size="sm"
-        options={[{ label: "管理员", value: "admin" }, { label: "成员", value: "member" }]}
+        options={Object.entries(ROLES).map(([value, r]) => ({ label: r.label, value }))}
         value={ctx.role}
         onChange={ctx.setRole}
       />
@@ -30,22 +40,46 @@ export function RangeSwitch({ ctx }) {
   );
 }
 
-export function BoardActions({ ctx, range = true }) {
-  return (
-    <>
-      {range && <RangeSwitch ctx={ctx} />}
-      <RoleSwitch ctx={ctx} />
-    </>
-  );
-}
-
 export const rangeDays = (r) => (r === "7d" ? 7 : r === "30d" ? 30 : 60);
 
-/** 企业 / 团队两档口径标签，挂在 PageHeader 的 title 后面。 */
+/** 当前看板口径标签，挂在 PageHeader 的 title 后面。 */
 export function ScopeTag({ scope }) {
-  return scope === "team"
-    ? <Tag tone="cat2" icon="ri-group-line">基础架构组</Tag>
-    : <Tag tone="cat1" icon="ri-building-line">全企业</Tag>;
+  if (scope === "member") return <Tag tone="cat2" icon="ri-user-3-line">个人</Tag>;
+  if (scope === "team") return <Tag tone="cat3" icon="ri-group-line">基础架构组</Tag>;
+  return <Tag tone="cat1" icon="ri-building-line">全企业</Tag>;
+}
+
+/* ── Section ────────────────────────────────────────────────────
+   一个 Dashboard 页里的模块区块。PRD 的「子母板结构：主面板定义组织大盘，
+   辅面板定义侧重点的关注方向」—— 模块是同一页里的区块，不是各自一页。
+   小节标题走 15px（--th-text-md，阶梯上「卡片与小节标题」那一档）。 */
+export const SECTION_IDS = {
+  overview: "sec-overview",
+  productivity: "sec-productivity",
+  adoption: "sec-adoption",
+  funnel: "sec-funnel",
+  consumption: "sec-consumption",
+};
+
+export function Section({ id, title, children }) {
+  return (
+    <section
+      id={id}
+      style={{ display: "flex", flexDirection: "column", gap: "var(--th-block-gap)", minWidth: 0, scrollMarginTop: 16 }}
+    >
+      <h2 style={{
+        fontFamily: "var(--th-font-cn)", fontSize: "var(--th-text-md)", fontWeight: 600,
+        color: "var(--color-fg)", margin: 0, lineHeight: 1.3,
+        display: "flex", alignItems: "center", gap: 8,
+      }}>
+        <span aria-hidden="true" style={{
+          width: 3, height: 14, borderRadius: 2, background: "var(--color-accent)", flexShrink: 0,
+        }} />
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
 }
 
 /** 卡内下沉说明面板。一张卡内最多一种内嵌底色（视觉预算）。 */

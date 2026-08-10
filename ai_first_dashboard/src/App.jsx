@@ -1,125 +1,68 @@
-/* App.jsx — A 档骨架（DESIGN.md 页面骨架 · 判断树第 3 条命中）
-     有会话 ✓ → 非单任务终点 ✓ → 需要在两个及以上并列一级域之间横向切换 ✓
-     PRD 3「权限控制：一级管理看板（全局）- 二级管理看板（团队或部门）- 个人看板」
-     正是三个并列一级域，因此顶栏承载一级、侧栏承载二级。
+/* App.jsx — D 档骨架（DESIGN.md 页面骨架 · 判断树第 4 条）
 
-   布局数值不可改：画布 #F8F9FB；nav 下 .shell 容器
-   display:flex; gap:16px; padding:16px; align-items:flex-start；
-   main{flex:1; min-width:0; display:flex; flex-direction:column; gap:16px}。 */
+   判断树逐条走：
+     1. 有会话吗？有 → 不是 C 档
+     2. 单任务收尾、只有一个正确的后续动作吗？否 → 不是 B 档
+     3. 需要在两个及以上并列的一级域之间横向切换吗？**否** ——
+        企业 / 团队 / 个人不是三个并列域，而是同一张看板在不同账号
+        权限下的不同内容，用户不通过导航在其间切换
+     4. 都不是，导航只有一层 → **D 档：NavRail 240px 全高，无顶栏**
+
+   D 档布局（不可改）：导轨贴视口左缘满高，右侧 1px 边、无圆角无阴影；
+   main{flex:1; min-width:0; padding:16px; display:flex;
+   flex-direction:column; gap:16px}。不得同时挂 TopNav。 */
 import React from "react";
-import { TopNav, Sidebar } from "./ds/index.js";
+import { NavRail } from "./ds/index.js";
 import logo from "./assets/tokenhub-logo.svg";
+import Dashboard from "./pages/Dashboard.jsx";
+import { ROLES, SECTION_IDS } from "./pages/shared.jsx";
 
-import EnterpriseOverview from "./pages/Overview.jsx";
-import Productivity from "./pages/Productivity.jsx";
-import Adoption from "./pages/Adoption.jsx";
-import FunnelRoi from "./pages/FunnelRoi.jsx";
-import Consumption from "./pages/Consumption.jsx";
-import Personal from "./pages/Personal.jsx";
-
-/* 一级域 —— 顶栏。PRD 用户角色说明：管理员可查看全团队的数据，成员仅可查看本人的数据。*/
-const TABS = [
-  { key: "enterprise", label: "企业看板", adminOnly: true },
-  { key: "team", label: "团队看板", adminOnly: true },
-  { key: "personal", label: "个人看板", adminOnly: false },
-];
-
-/* 二级域 —— 侧栏。企业与团队共用同一组模块（PRD 3.1 / 3.2 模块对齐），
-   差别只在 scope，页面组件按 scope 取数。*/
-const BOARD_ITEMS = [
-  { key: "overview", icon: "ri-sparkling-2-line", label: "AI First 概览" },
-  { key: "productivity", icon: "ri-bar-chart-grouped-line", label: "生产力监控大盘" },
-  { key: "adoption", icon: "ri-team-line", label: "AI 应用情况分析" },
-  { key: "funnel", icon: "ri-filter-3-line", label: "SDLC / ROI 转化漏斗" },
-  { key: "consumption", icon: "ri-coins-line", label: "消耗来源分析" },
-];
-
-const NAV = {
-  enterprise: [{ title: "企业管理看板", items: BOARD_ITEMS }],
-  team: [{ title: "团队管理看板 · 基础架构组", items: BOARD_ITEMS }],
-  /* 个人看板按 PRD 3.3 新版收成单页（「保持页面一页内做完」），
-     所以这一组只有一个二级入口 —— 骨架档位不变，仍是 A 档。 */
-  personal: [{
-    title: "个人看板",
-    items: [
-      { key: "me", icon: "ri-user-3-line", label: "我的数据" },
-    ],
-  }],
-};
-
-const PAGES = {
-  overview: EnterpriseOverview,
-  productivity: Productivity,
-  adoption: Adoption,
-  funnel: FunnelRoi,
-  consumption: Consumption,
-  me: Personal,
-};
+/* 导航只有一层，也只有一个模块 —— 权限决定看到什么，不靠导航分流。 */
+const NAV = [{
+  title: "监控",
+  items: [{ key: "dashboard", icon: "ri-dashboard-line", label: "Dashboard" }],
+}];
 
 export default function App() {
-  const [role, setRole] = React.useState("admin");     // admin | member
-  const [tab, setTab] = React.useState("enterprise");
-  const [page, setPage] = React.useState("overview");
+  const [role, setRole] = React.useState("enterprise");
   const [collapsed, setCollapsed] = React.useState(false);
-  const [range, setRange] = React.useState("30d");     // all | 30d | 7d
+  const [range, setRange] = React.useState("30d");
   const [deepLink, setDeepLink] = React.useState(null);
 
-  const visibleTabs = TABS.filter((t) => role === "admin" || !t.adminOnly);
+  /* 页内跳转：模块是同一页的区块，所以「查看工程分布」这类动作是
+     滚动到该区块，不是切页。第二个参数把筛选意图（如 dim:"repo"）
+     带给目标区块。 */
+  const go = React.useCallback((sectionKey, intent) => {
+    setDeepLink(intent && intent.page === sectionKey ? intent : null);
+    const el = document.getElementById(SECTION_IDS[sectionKey]);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
-  // 角色降级为「成员」时，只剩个人看板可达。
-  React.useEffect(() => {
-    if (role === "member" && tab !== "personal") { setTab("personal"); setPage("me"); }
-  }, [role, tab]);
-
-  const go = (target) => {
-    if (target.tab && target.tab !== tab) setTab(target.tab);
-    if (target.page) setPage(target.page);
-    setDeepLink(target);
-  };
-
-  const onTab = (label) => {
-    const next = TABS.find((t) => t.label === label);
-    if (!next) return;
-    setTab(next.key);
-    setPage(NAV[next.key][0].items[0].key);
-    setDeepLink(null);
-  };
-
-  const groups = NAV[tab];
-  const valid = groups.some((g) => g.items.some((i) => i.key === page));
-  const activePage = valid ? page : groups[0].items[0].key;
-  const Page = PAGES[activePage];
-
-  const ctx = {
-    role, setRole, scope: tab, range, setRange, go,
-    deepLink: deepLink?.page === activePage ? deepLink : null,
-  };
+  const ctx = { role, setRole, scope: ROLES[role].scope, range, setRange, go, deepLink };
 
   return (
-    <>
-      <TopNav
-        logoSrc={logo}
-        brand="InfOne"
-        items={visibleTabs.map((t) => ({ label: t.label }))}
-        active={TABS.find((t) => t.key === tab)?.label}
-        onSelect={onTab}
-        user={role === "admin" ? "admin@infone.ai" : "chen@infone.ai"}
-      />
-      <div className="shell" style={{
-        display: "flex", gap: 16, padding: 16, alignItems: "flex-start",
-        minHeight: "calc(100vh - 48px)",
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      {/* D 档要求导轨「贴视口左缘满高」。NavRail 自身是 align-self:stretch，
+          在长页面里会被文档高度拉长，底部账户区随之滚出视口 —— 所以由外层
+          包一个 sticky 容器把它钉在 100vh，品牌、导航、账户三段始终可见。
+          NavRail 本体保持与 recipe 一致，不改它的样式。 */}
+      <div style={{
+        position: "sticky", top: 0, height: "100vh",
+        alignSelf: "flex-start", display: "flex", flexShrink: 0,
       }}>
-        <Sidebar
-          groups={groups}
-          active={activePage}
-          onChange={(k) => { setPage(k); setDeepLink(null); }}
+        <NavRail
+          logoSrc={logo}
+          brand="InfOne"
+          groups={NAV}
+          active="dashboard"
+          user={ROLES[role].account}
           collapsed={collapsed}
           onToggle={() => setCollapsed((v) => !v)}
         />
-        <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}>
-          <Page key={`${tab}-${activePage}`} ctx={ctx} />
-        </main>
       </div>
-    </>
+      <main style={{ flex: 1, minWidth: 0, padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+        <Dashboard key={role} ctx={ctx} />
+      </main>
+    </div>
   );
 }

@@ -9,10 +9,10 @@
    MetricStrip 在本页刻意不带 Sparkline —— 再加数据墨色就是第 4 类，超预算。 */
 import React from "react";
 import {
-  PageHeader, Card, CardHead, MetricStrip, DataTable, Chart, Segmented,
+  Card, CardHead, MetricStrip, DataTable, Chart, Segmented,
   StatusChip, Pager, Avatar, compact, nf,
 } from "../ds/index.js";
-import { BoardActions, ScopeTag, InsetNote } from "./shared.jsx";
+import { Section, SECTION_IDS, InsetNote } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import {
   ENTERPRISE, TEAMS, EMPLOYEES, MY_TEAM, MY_TEAM_MEMBERS,
@@ -51,15 +51,7 @@ export default function Productivity({ ctx }) {
   const teamsRanked = React.useMemo(() => rankBy(TEAMS, dim), [dim]);
 
   return (
-    <>
-      <PageHeader
-        title="生产力监控大盘"
-        tags={<ScopeTag scope={ctx.scope} />}
-        meta={`更新于 ${UPDATED_AT}`}
-        description="活跃度看「有多少人在用、发生了多少次使用」，排行榜看「谁在产出、谁在返工、谁在烧钱」。"
-        actions={<BoardActions ctx={ctx} />}
-      />
-
+    <Section id={SECTION_IDS.productivity} title="生产力监控大盘">
       <MetricStrip
         animate
         items={[
@@ -138,7 +130,7 @@ export default function Productivity({ ctx }) {
           />
         ))}
       </Card>
-    </>
+    </Section>
   );
 }
 
