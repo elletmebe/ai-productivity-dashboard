@@ -12,4 +12,5 @@ export {
 export { Chart } from "./Chart.jsx";
 export { DataTable } from "./DataTable.jsx";
 export { MetricStrip } from "./MetricStrip.jsx";
+export { ScrollSpine } from "./ScrollSpine.jsx";
 export { EmptyState, Banner, Skeleton, LogoLockup } from "./misc.jsx";

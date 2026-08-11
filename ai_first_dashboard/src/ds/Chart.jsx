@@ -30,7 +30,7 @@ export function Chart({
   type = "line", data = [], series, xKey = "label", height = 240,
   showLegend = true, showGrid = true, showValues = false,
   yFormat, y2Format, unit = "", unit2 = "", smooth = false, donutLabel = "合计",
-  emptyText = "暂无数据", animate = true, style,
+  emptyText = "暂无数据", animate = true, refLine, style,
 }) {
   const [ref, W] = useWidth();
   const fmt = React.useCallback((v) => `${(yFormat || compact)(v)}${unit}`, [yFormat, unit]);
@@ -53,7 +53,7 @@ export function Chart({
   }
 
   const cls = animate ? "th-in-fade" : undefined;
-  const shared = { data, keys, xKey, height, showGrid, showValues, fmt, fmt2, smooth, W, type };
+  const shared = { data, keys, xKey, height, showGrid, showValues, fmt, fmt2, smooth, W, type, refLine };
 
   let body = null;
   if (["pie", "donut"].includes(type)) body = <PieBody {...shared} donut={type === "donut"} donutLabel={donutLabel} />;
@@ -86,7 +86,7 @@ function Legend({ items }) {
 
 /* ── 直角坐标系：line / spline / area / stackedArea / bar / groupedBar /
       stackedBar / combo ───────────────────────────────────────────*/
-function CartesianBody({ data, keys, xKey, height, showGrid, fmt, fmt2, smooth, W, type, showValues }) {
+function CartesianBody({ data, keys, xKey, height, showGrid, fmt, fmt2, smooth, W, type, showValues, refLine }) {
   /* 双 Y 轴只用于「一个量 + 一个率」且量级差 ≥10×（DESIGN.md 图表禁令）。
      右轴系列由 series[].axis === "right" 声明，默认全部走左轴。 */
   const right = keys.filter((k) => k.axis === "right");
@@ -188,6 +188,23 @@ function CartesianBody({ data, keys, xKey, height, showGrid, fmt, fmt2, smooth, 
           </g>
         );
       })}
+
+      {/* 均值参考线：虚线走数据墨色，不占图表色板槽位，也不构成新的着色语义 */}
+      {refLine != null && (() => {
+        const v = typeof refLine === "number" ? refLine : refLine.value;
+        const text = typeof refLine === "number" ? null : refLine.label;
+        if (!(v > 0) || v > top) return null;
+        return (
+          <g>
+            <line x1={padL} x2={W - padR} y1={y(v)} y2={y(v)}
+                  stroke="var(--color-data-line)" strokeWidth="1" strokeDasharray="4 4" opacity="0.7" />
+            {text && (
+              <text x={W - padR - 4} y={y(v) - 5} textAnchor="end" {...AXIS}
+                    style={{ ...AXIS, fontVariantNumeric: "tabular-nums" }}>{text}</text>
+            )}
+          </g>
+        );
+      })()}
 
       {data.map((d, i) => (i % labelEvery === 0 ? (
         <text key={i} x={isBarish ? cx(i) : padL + (n === 1 ? iw / 2 : (i / (n - 1)) * iw)}

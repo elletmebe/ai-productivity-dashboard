@@ -302,7 +302,7 @@ export function insightsFor(scope, teamName) {
         : `${teamName}仍有 ${fmtInt(unused)} 人本月无任何模型请求。该组 AI 代码占比已居首位，补齐这部分人是最低成本的增量。`,
       basis: `${fmtInt(covered)} / ${fmtInt(head)} 人 · 较上月 +${ENTERPRISE.coverageDeltaPP}pp`,
       action: "查看覆盖率",
-      target: { page: "adoption" },
+      target: { page: "overview" },
     },
   ];
 }
@@ -316,16 +316,15 @@ export const ME = {
   team: "基础架构组",
   role: "技术负责人",
 
-  // 五张统计卡
-  biggestContribution: 1847,
-  biggestContributionDate: "6月18日",
-  biggestContributionBranch: "feat/payment-refactor",
-  busiestDay: "5月22日",
-  busiestDayRequests: 412,
-  longestStreak: 34,
-  peakTokens: 12_400_000,
-  peakTokensDate: "5月22日",
-  lifetimeTokens: 1_820_000_000,
+  // 八张统计卡（一排 4 个，共两排）
+  messages: 3489,
+  lifetimeTokens: 18_700_000_000,
+  peakTokens: 1_500_000_000,
+  longestChat: "45h 4m",
+  currentStreak: 42,
+  longestStreak: 42,
+  peakHour: "10 PM",
+  favoriteModel: "Sonnet 4.6",
 
   // 本月用量（credits，不是金额）
   usedCredits: 19_639,
@@ -420,3 +419,218 @@ export const CONTRIB_PREVIEW_MONTHS = 3;
 /* ── 团队看板：当前登录管理员所辖团队 ────────────────────────── */
 export const MY_TEAM = TEAMS[0];
 export const MY_TEAM_MEMBERS = EMPLOYEES.filter((e) => e.teamId === MY_TEAM.id);
+
+/* ══════════════════════════════════════════════════════════════════
+   PRD v2（【WIP】Proposal | InfOne Dashboard）新增的数据
+   ══════════════════════════════════════════════════════════════════ */
+
+/** 近 N 天的自然日标签，终点固定 2026-08-10。 */
+function days(n) {
+  const out = [];
+  const today = new Date("2026-08-10T00:00:00");
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(today.getTime() - i * 86400000);
+    out.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, weekend: d.getDay() === 0 || d.getDay() === 6 });
+  }
+  return out;
+}
+
+/* ── 指标卡（本周）── PRD 2.1「最上方展现关键指标卡（本周）」 */
+export const WEEK_KPI = {
+  roi: ENTERPRISE.roi,                 // 行/元，与 ROI 趋势累计值同源
+  roiDelta: 12.4,
+  delivery: ENTERPRISE.delivery,
+  deliveryDelta: 9.2,
+  acceptRate: ENTERPRISE.acceptRate,
+  acceptRateDelta: 2.1,                // pt
+  aiShare: ENTERPRISE.aiShare,
+  aiShareDelta: 4.3,                   // pt
+  linesPerTurn: ENTERPRISE.linesPerTurn,
+  linesPerTurnDelta: 5.6,
+};
+
+/* ── Token 额度水位 ── PRD「超额/未超额 两种状态 + 超额弹出提示」
+   两张卡演示两种状态：超水位（红）与安全（蓝）。预警线 80%。 */
+export const QUOTA = {
+  warnAt: 80,
+  today: { label: "今日额度", used: 2_760_000, total: 3_000_000, burnoutHours: 1.4 },
+  yesterday: { label: "昨日额度", used: 1_230_000, total: 3_000_000, burnoutHours: null },
+};
+
+/* ── DAU 活跃度趋势（分 InfCode IDE / 插件）── */
+export const DAU_BY_CLIENT = (() => {
+  const r = rng(303);
+  return days(30).map((d, i) => {
+    const s = d.weekend ? 0.34 : 1;
+    const ramp = 0.86 + (i / 29) * 0.24;          // 长期缓慢上行
+    return {
+      label: d.label,
+      ide: Math.round(430 * s * ramp * (0.9 + r() * 0.2)),
+      plugin: Math.round(190 * s * ramp * (0.86 + r() * 0.28)),
+    };
+  });
+})();
+
+/* ── 平均对话轮次趋势 / Commit 趋势 ──
+   PRD 交叉验证：对话轮次涨幅 vs commit 涨幅，判断「用得更多」还是「产出更强」。*/
+export const TURNS_TREND = (() => {
+  const r = rng(404);
+  return days(30).map((d, i) => ({
+    label: d.label,
+    weekend: d.weekend,
+    value: Math.round((d.weekend ? 1750 : 7600) * (0.9 + (i / 29) * 0.2) * (0.9 + r() * 0.2)),
+  }));
+})();
+
+export const COMMIT_TREND = (() => {
+  const r = rng(505);
+  return days(30).map((d, i) => ({
+    label: d.label,
+    weekend: d.weekend,
+    value: Math.round((d.weekend ? 150 : 880) * (0.93 + (i / 29) * 0.1) * (0.9 + r() * 0.2)),
+  }));
+})();
+
+export const mean = (rows, key = "value") =>
+  rows.reduce((s, x) => s + x[key], 0) / (rows.length || 1);
+
+/** 前后半程涨幅，用于「对话轮次 vs commit」交叉验证。 */
+export function growth(rows, key = "value") {
+  const half = Math.floor(rows.length / 2);
+  const a = mean(rows.slice(0, half), key);
+  const b = mean(rows.slice(half), key);
+  return a ? ((b - a) / a) * 100 : 0;
+}
+
+/* ── InfCode 使用分析：采纳 / 未采纳行数 + 采纳率 ── */
+export const INFCODE_USAGE = (() => {
+  const r = rng(606);
+  return days(30).map((d) => {
+    const gen = Math.round((d.weekend ? 900 : 4600) * (0.82 + r() * 0.36));
+    const rate = 0.62 + r() * 0.22;
+    const accepted = Math.round(gen * rate);
+    return { label: d.label, accepted, rejected: gen - accepted, rate: +(rate * 100).toFixed(1) };
+  });
+})();
+
+/* ── 每日 token 消耗趋势（PRD 消耗来源 第 1 项）── */
+export const TOKEN_DAILY = (() => {
+  const r = rng(707);
+  return days(30).map((d) => ({
+    label: d.label,
+    value: Math.round((d.weekend ? 620_000 : 3_180_000) * (0.86 + r() * 0.3)),
+  }));
+})();
+
+/* ── 模型 / 工程的 ROI（PRD：ROI 最高的模型/最低的模型是…、ROI 最高的项目是…）
+   ROI = 该来源产出的留存代码行数 ÷ 它的消耗金额，单位 行/元。 */
+const MODEL_ROI = { standard: 21.4, reasoning: 12.8, light: 26.9, inhouse: 9.6 };
+const REPO_ROI = { "infcode-web": 19.7, "tokenhub-api": 15.2, "infone-dashboard": 22.6, "data-platform": 8.4 };
+MODELS.forEach((m) => { m.roi = MODEL_ROI[m.key]; });
+REPOS.forEach((x) => { x.roi = REPO_ROI[x.key]; });
+
+export const bestBy = (list, key) => [...list].sort((a, b) => b[key] - a[key])[0];
+export const worstBy = (list, key) => [...list].sort((a, b) => a[key] - b[key])[0];
+
+/* ── SDLC/ROI Part 3 排行榜 ──
+   PRD 排名维度改为「结果指标」三项：
+     a 使用 InfCode 产出代码数量（生成并采纳的代码数量）
+     b 平均单轮对话贡献代码行数
+     c 平均每块钱贡献代码行数（ROI） */
+export const RESULT_DIMS = [
+  { key: "acceptedLines", label: "AI 采纳代码量", unit: " 行", fmt: "compact",
+    hint: "使用 InfCode 产出的代码数量：生成并被采纳的代码行数",
+    cols: [{ key: "acceptRate", label: "采纳率", fmt: "pct" },
+           { key: "genLines", label: "生成行数", fmt: "compact" }] },
+
+  /* PRD v3 新增维度：团队看「人均」token 消耗，个人看「总量」——
+     团队规模差一倍，直接比总量会把大团队顶到榜首，读不出效率。 */
+  { key: "tokenSpend", label: "Token 消耗", unit: "", fmt: "compact",
+    teamKey: "tokensPerHead", personKey: "spendTokens",
+    teamLabel: "人均 Token 消耗", personLabel: "Token 消耗",
+    hint: "团队口径为人均 token 消耗（该团队总消耗 ÷ 团队人数），个人口径为本人 token 消耗总量",
+    teamCols: [{ key: "spendPerHead", label: "人均金额", fmt: "money" },
+               { key: "roi", label: "ROI", fmt: "fixed1" }],
+    cols: [{ key: "spend", label: "金额", fmt: "money" },
+           { key: "roi", label: "ROI", fmt: "fixed1" }] },
+
+  { key: "linesPerTurn", label: "对话平均贡献行数", unit: " 行/轮", fmt: "fixed1",
+    hint: "平均每轮对话带来的有效代码产出 = 有效代码产出总行数 ÷ 总对话轮次",
+    cols: [{ key: "mergeRate", label: "合入率", fmt: "pct" },
+           { key: "turns", label: "轮次", fmt: "int" }] },
+
+  { key: "roi", label: "ROI", unit: " 行/元", fmt: "fixed1",
+    hint: "平均每块钱贡献代码行数 = 有效代码产出总行数 ÷ 总消耗金额",
+    cols: [{ key: "spend", label: "消耗金额", fmt: "money" },
+           { key: "acceptedLines", label: "采纳行数", fmt: "compact" }] },
+];
+
+/* 给团队与个人补齐三个结果指标，保证与既有数据自洽：
+   采纳行数由既有 accepted 派生，ROI 由 采纳行数 ÷ 消耗金额 得到。 */
+TEAMS.forEach((t, i) => {
+  t.acceptedLines = Math.round(ENTERPRISE.accepted * (t.aiShare / 100) * (0.9 + (7 - i) * 0.03) / 7);
+  t.roi = +(t.acceptedLines / t.spend).toFixed(1);
+});
+EMPLOYEES.forEach((e) => {
+  e.acceptedLines = e.accepted;
+  e.roi = +(e.acceptedLines / e.spend).toFixed(1);
+});
+
+
+/* ── 排行榜所需的派生字段 ──────────────────────────────────────
+   全部由已有数据算出，不另起一套数字：任何一列都能被同卡的其他列除回去。 */
+TEAMS.forEach((t) => {
+  t.tokensPerHead = Math.round(t.spendTokens / t.people);
+  t.spendPerHead = +(t.spend / t.people).toFixed(2);
+  /* 采纳率随 AI 代码占比走：用得越熟，生成结果的即时可用性越高。
+     不能用全局采纳率反推 genLines —— 那会让整列恒等于全局值，成为零信息列。 */
+  t.acceptRate = +(46 + (t.aiShare - 34) * 0.62).toFixed(1);
+  t.genLines = Math.round(t.acceptedLines / (t.acceptRate / 100));
+  t.turns = Math.round(t.acceptedLines / t.linesPerTurn);
+  t.mergeRate = +(ENTERPRISE.mergeRate * (0.92 + (t.aiShare / 100) * 0.22)).toFixed(1);
+  t.sizeMeta = `${t.people} 人`;
+});
+EMPLOYEES.forEach((e) => {
+  e.acceptRate = +(42 + (e.aiShare - 18) * 0.52).toFixed(1);
+  e.genLines = Math.round(e.acceptedLines / (e.acceptRate / 100));
+  e.mergeRate = +(ENTERPRISE.mergeRate * (0.9 + (e.aiShare / 100) * 0.26)).toFixed(1);
+  e.sizeMeta = e.team;
+});
+
+/** 排行榜取数：dim + 团队/个人 + 时间窗。7 天按 30 天的比例缩放，保持相对名次。 */
+export function rankRows(dim, by, days) {
+  const list = by === "team" ? TEAMS : EMPLOYEES;
+  const valueKey = dim.key === "tokenSpend"
+    ? (by === "team" ? dim.teamKey : dim.personKey)
+    : dim.key;
+  const scale = days === 7 ? 7 / 30 : 1;
+  const absolute = ["acceptedLines", "genLines", "turns", "spend", "spendPerHead", "tokensPerHead", "spendTokens"];
+  const scaled = list.map((x) => {
+    const o = { ...x, __value: x[valueKey] };
+    absolute.forEach((k) => { if (typeof o[k] === "number") o[k] = Math.round(o[k] * scale); });
+    if (absolute.includes(valueKey)) o.__value = Math.round(x[valueKey] * scale);
+    return o;
+  });
+  return scaled.sort((a, b) => b.__value - a.__value).slice(0, 6);
+}
+
+/* ── ROI 趋势（时间线按月）── PRD v3：Part 2 由按日改为按月。
+   近 12 个自然月，末月为 2026-08；月度 ROI 围绕企业口径值缓慢爬升。 */
+export const ROI_TREND_MONTHLY = (() => {
+  const r = rng(818);
+  const out = [];
+  const end = new Date("2026-08-01T00:00:00");
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(end.getFullYear(), end.getMonth() - i, 1);
+    const drift = 0.72 + ((11 - i) / 11) * 0.42;          // 熟练度带来的长期上行
+    const roi = +(ENTERPRISE.roi * drift * (0.95 + r() * 0.1)).toFixed(1);
+    const invest = Math.round(ENTERPRISE.spend * (0.7 + (11 - i) / 11 * 0.5) * (0.92 + r() * 0.16));
+    out.push({
+      label: `${d.getFullYear() % 100}/${d.getMonth() + 1}`,
+      invest,
+      ret: Math.round(invest * roi),
+      roi,
+    });
+  }
+  return out;
+})();

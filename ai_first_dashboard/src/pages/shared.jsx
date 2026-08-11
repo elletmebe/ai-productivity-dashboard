@@ -54,12 +54,20 @@ export function ScopeTag({ scope }) {
    辅面板定义侧重点的关注方向」—— 模块是同一页里的区块，不是各自一页。
    小节标题走 15px（--th-text-md，阶梯上「卡片与小节标题」那一档）。 */
 export const SECTION_IDS = {
-  overview: "sec-overview",
-  productivity: "sec-productivity",
-  adoption: "sec-adoption",
-  funnel: "sec-funnel",
+  kpi: "sec-kpi",
+  agent: "sec-agent",
   consumption: "sec-consumption",
+  funnel: "sec-funnel",
 };
+
+/* 四个模块的有序列表 —— 顺序与 PRD v3「2.1 企业管理看板」的分类顺序、
+   以及 Dashboard.jsx 里的渲染顺序一致。右侧鱼眼滑动轨道按它定位区块。 */
+export const SECTIONS = [
+  { key: "kpi", id: SECTION_IDS.kpi, label: "指标卡" },
+  { key: "agent", id: SECTION_IDS.agent, label: "Agent 使用监控大盘" },
+  { key: "consumption", id: SECTION_IDS.consumption, label: "消耗来源" },
+  { key: "funnel", id: SECTION_IDS.funnel, label: "SDLC / ROI 结果指标" },
+];
 
 export function Section({ id, title, children }) {
   return (
@@ -80,6 +88,17 @@ export function Section({ id, title, children }) {
       {children}
     </section>
   );
+}
+
+/* ── 额度水位三档 ── PRD「颜色状态：正常消耗蓝色 / 接近上限黄色 /
+   使用到超额（用到池化共享额度）红色」。企业指标卡与个人本月用量共用
+   同一份阈值，避免两处各写一套判断。 */
+export const QUOTA_WARN_AT = 80;
+
+export function usageLevel(pct) {
+  if (pct >= 100) return { tone: "danger", label: "已用到池化共享额度", chip: "danger" };
+  if (pct >= QUOTA_WARN_AT) return { tone: "warning", label: "接近上限", chip: "warning" };
+  return { tone: "accent", label: "正常消耗", chip: "info" };
 }
 
 /** 卡内下沉说明面板。一张卡内最多一种内嵌底色（视觉预算）。 */

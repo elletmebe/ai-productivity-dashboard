@@ -28,18 +28,50 @@ function useCountUp(target, run) {
   return v;
 }
 
-export function MetricStrip({ items, density = "comfortable", animate = true, embedded = false, style }) {
+export function MetricStrip({
+  items, density = "comfortable", animate = true, embedded = false, columns, style,
+}) {
   const compact = density === "compact";
+  const pad = compact ? 12 : 16;
   const shell = embedded ? { padding: 0 } : {
     background: "var(--color-surface-raised)",
     border: "1px solid var(--color-border)",
     borderRadius: "var(--th-radius-md)",
     boxShadow: "var(--th-shadow-card)",
-    padding: compact ? 12 : 16,
   };
+
+  /* ── 网格模式（传 columns 时启用）────────────────────────────
+     默认的一行布局用「除第一项外都加左分隔线」判断分隔，一旦换行，
+     第二行第一格会错误地带上一条左线。所以网格模式改成画格线：
+     每格都带左 + 上边框，再用 -1px 外边距把最外圈那一圈推到容器外，
+     由 overflow:hidden 裁掉 —— 与列数无关，换几行都对。
+     columns 是「单列最小可读宽」，不是列数：DESIGN.md 禁止写死列数，
+     宽屏自然排成 4 列，窄屏自动退成 3 / 2 / 1 列。 */
+  if (columns) {
+    return (
+      <div style={{
+        ...shell, display: "grid",
+        gridTemplateColumns: `repeat(auto-fit, minmax(${columns}px, 1fr))`,
+        gap: 0, overflow: "hidden", minWidth: 0, ...style,
+      }}>
+        {items.map((it) => (
+          <div key={it.key || it.label} style={{
+            padding: pad,
+            borderLeft: "1px solid var(--color-divider)",
+            borderTop: "1px solid var(--color-divider)",
+            marginLeft: -1, marginTop: -1,
+            minWidth: 0,
+          }}>
+            <Metric item={it} animate={animate} compact={compact} divided={false} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div style={{
-      ...shell, display: "grid",
+      ...shell, padding: pad, display: "grid",
       gridTemplateColumns: `repeat(auto-fit, minmax(${compact ? 150 : 176}px, 1fr))`,
       gap: compact ? 12 : 16, minWidth: 0, ...style,
     }}>

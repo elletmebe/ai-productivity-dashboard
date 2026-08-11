@@ -84,7 +84,7 @@ export const M = {
 
   // 3.1 模块级口径
   coverage: {
-    label: "全员 AI 覆盖率",
+    label: "Agent 使用覆盖率",
     hint: "从用户覆盖视角展现企业 AI Native 程度，分活跃使用、低频使用、未使用三层。覆盖率 = (周活跃 + 低频) ÷ 在册员工数 × 100%",
   },
   activityDist: {
@@ -104,26 +104,38 @@ export const M = {
     hint: "输入 token（含上下文与历史）/ 输出 token（模型生成部分）",
   },
 
-  // 3.3 个人看板（新版）—— 五张统计卡
-  biggestContribution: {
-    label: "Your biggest contribution",
-    hint: "单次最大贡献：统计周期内单次提交/合并中 AI 贡献行数的最高值，附带发生日期与所在分支",
-  },
-  busiestDay: {
-    label: "Your busiest day",
-    hint: "调用量最高的那个自然日，按调用记录的 timestamp 本地时区归日",
-  },
-  longestStreak: {
-    label: "Your longest streak",
-    hint: "历史上最长的连续活跃天数；当天至少有过一次模型调用算一个活跃日",
-  },
-  peakTokens: {
-    label: "Your peak tokens",
-    hint: "单日 token 用量的最高值（各模型合计，缓存命中的部分不重复计入）",
+  // 3.3 个人看板（新版）—— 八张统计卡
+  messages: {
+    label: "Messages",
+    hint: "账号开通至今累计发出的用户消息条数。Messages = COUNT(用户消息条目，按 session 去重后累加)",
   },
   lifetimeTokens: {
-    label: "Your lifetime tokens",
-    hint: "账号开通至今的累计 token 用量（各模型合计）",
+    label: "Lifetime tokens",
+    hint: "账号开通至今的累计 token 用量（各模型合计，缓存命中的部分不重复计入）",
+  },
+  peakTokens: {
+    label: "Peak tokens",
+    hint: "单日 token 用量的最高值（各模型合计，缓存命中的部分不重复计入）",
+  },
+  longestChat: {
+    label: "Longest chat",
+    hint: "单个 session 从第一条到最后一条消息的最长跨度时长，衡量最长的一次连续协作",
+  },
+  currentStreak: {
+    label: "Current streak",
+    hint: "截至今天的连续活跃天数；当天至少有过一次模型调用算一个活跃日，中断即归零",
+  },
+  longestStreak: {
+    label: "Longest streak",
+    hint: "历史上最长的连续活跃天数；当天至少有过一次模型调用算一个活跃日",
+  },
+  peakHour: {
+    label: "Peak hour",
+    hint: "调用量最高的那个小时段，按调用记录的 timestamp 本地时区归入 0–23 时",
+  },
+  favoriteModel: {
+    label: "Favorite model",
+    hint: "统计周期内调用次数最多的模型，衡量最常用的协作模型",
   },
 
   // 贡献日历 / Contribution activity

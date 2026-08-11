@@ -15,9 +15,9 @@ import {
   TrendDelta, compact, nf,
 } from "../ds/index.js";
 import { Section, SECTION_IDS, InsetNote, KV } from "./shared.jsx";
+import RankCard from "./RankCard.jsx";
 import { M } from "../data/metrics.js";
-import { FUNNEL_SCOPES, funnelOf, ROI_TREND, ENTERPRISE, UPDATED_AT } from "../data/mock.js";
-import { rangeDays } from "./shared.jsx";
+import { FUNNEL_SCOPES, funnelOf, ROI_TREND_MONTHLY, RESULT_DIMS, ENTERPRISE } from "../data/mock.js";
 
 const SCOPE_OPTS = [
   { label: "组织整体", value: "org" },
@@ -37,14 +37,14 @@ export default function FunnelRoi({ ctx }) {
   // 陡峭程度：首步到末步的整体存活率，越高漏斗越平缓、转化效率越好
   const overall = (merged / gen) * 100;
 
-  const days = rangeDays(ctx.range);
-  const trend = ROI_TREND.slice(-days);
+  /* PRD v3：Part 2 时间线按月，不再按日。 */
+  const trend = ROI_TREND_MONTHLY;
   const invest = trend.reduce((s, d) => s + d.invest, 0);
   const ret = trend.reduce((s, d) => s + d.ret, 0);
   const roi = ret / invest;
 
   return (
-    <Section id={SECTION_IDS.funnel} title="SDLC / ROI 转化漏斗">
+    <Section id={SECTION_IDS.funnel} title="SDLC / ROI 结果指标">
       {/* ── Part 1 · SDLC 漏斗 ───────────────────────────────── */}
       <Card>
         <CardHead
@@ -107,7 +107,7 @@ export default function FunnelRoi({ ctx }) {
         <CardHead
           title="Part 2 · ROI 趋势"
           hint={M.roi.hint}
-          meta={`近 ${days} 天 · ${FUNNEL_SCOPES[scope].label}`}
+          meta={`近 ${trend.length} 个月 · ${FUNNEL_SCOPES[scope].label}`}
           actions={
             <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6 }}>
               <span className="th-nums" style={{ fontSize: "var(--th-text-md)", fontWeight: 600, color: "var(--color-fg)" }}>
@@ -126,7 +126,7 @@ export default function FunnelRoi({ ctx }) {
           height={236}
           data={trend}
           series={[
-            { key: "invest", name: "Invest · token 金额（元）" },
+            { key: "invest", name: "Invest · token 金额（元 / 月）" },
             { key: "roi", name: "ROI（行/元）", type: "line", axis: "right", color: "--th-chart-5" },
           ]}
           yFormat={(v) => `¥${compact(v)}`}
@@ -142,7 +142,78 @@ export default function FunnelRoi({ ctx }) {
           <KV label="杠杆" value={`每 ¥1 撬动 ${roi.toFixed(1)} 行留存代码`} />
         </div>
       </Card>
+
+      {/* ── Part 3 · 排行榜（排名维度为结果指标）──────────────
+          PRD v3 四个维度：AI 采纳代码量 / Token 消耗（团队看人均、个人看
+          总量）/ 对话平均贡献行数 / ROI。每张卡自带「团队 · 个人」与
+          「7 天 · 30 天」两个切换，互不影响。 */}
+      <Card>
+        <CardHead
+          title="Part 3 · 排行榜"
+          hint="排名维度全部是结果指标，不用过程指标排名 —— 过程指标（对话轮次、调用次数）高不等于产出高。"
+          meta="按结果指标排序 · Top 6"
+        />
+        <InsetNote>
+          四个维度：<strong style={{ color: "var(--color-fg)" }}>AI 采纳代码量</strong>（生成并采纳的代码数量）·
+          <strong style={{ color: "var(--color-fg)" }}> Token 消耗</strong>（团队看人均、个人看总量）·
+          <strong style={{ color: "var(--color-fg)" }}> 对话平均贡献行数</strong>（平均每轮对话带来的有效产出）·
+          <strong style={{ color: "var(--color-fg)" }}> ROI</strong>（平均每块钱贡献代码行数）。
+        </InsetNote>
+      </Card>
+
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))",
+        gap: 16, minWidth: 0,
+      }}>
+        {RESULT_DIMS.map((d) => (
+          <div key={d.key} style={{ display: "flex", minWidth: 0 }}>
+            <RankCard dim={d} />
+          </div>
+        ))}
+      </div>
+
+      <Card>
+        <CardHead title="交叉分析" hint="把四个榜单叠起来读：消耗高但 ROI 低的对象，是成本优化的第一顺位。" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+          <CrossRow
+            icon="ri-scales-3-line"
+            title="产出与效率背离"
+            body="人均 token 消耗榜首若不在 ROI 榜前三，说明「烧得多」没换来「产出高」，该团队是成本优化的第一顺位。"
+          />
+          <CrossRow
+            icon="ri-seedling-line"
+            title="可复制样本"
+            body="对话平均贡献行数与 ROI 双高的团队，其模型选型与上下文策略值得沉淀成实践并向中低分层推广。"
+          />
+          <CrossRow
+            icon="ri-user-follow-line"
+            title="介入优先级"
+            body="AI 采纳代码量低且 ROI 低的对象，问题在用法不在额度 —— 优先做用法培训，而不是加额度。"
+          />
+        </div>
+      </Card>
+
     </Section>
+  );
+}
+
+/* 交叉分析的一条结论：图标 + 标题 + 一段说明。
+   图标走 muted 数据墨色，不新增着色语义。 */
+function CrossRow({ icon, title, body }) {
+  return (
+    <div style={{ display: "flex", gap: 10, alignItems: "flex-start", minWidth: 0 }}>
+      <i className={icon} aria-hidden="true" style={{
+        fontSize: 16, lineHeight: 1.5, flexShrink: 0, color: "var(--color-fg-subtle)",
+      }} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+        <span style={{ fontSize: "var(--th-text-sm)", fontWeight: 600, color: "var(--color-fg)", lineHeight: 1.5 }}>
+          {title}
+        </span>
+        <span style={{ fontSize: "var(--th-text-xs)", color: "var(--color-fg-muted)", lineHeight: 1.7 }}>
+          {body}
+        </span>
+      </div>
+    </div>
   );
 }
 

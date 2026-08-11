@@ -1,15 +1,16 @@
 /* Personal.jsx — 个人看板（PRD 3.3 新版，单页）
-   自上而下 / 自左而右四块，PRD 对位置有明确要求：
-     ① 五张统计卡：biggest contribution / busiest day / longest streak /
-        peak tokens / lifetime tokens，每张带 ⓘ 口径提示
-     ② 贡献日历：按自然日标记贡献强度，Less → More 共 5 档
-     ③ Contribution activity：**位置在右侧边**，按月分组的贡献流水，
-        展开后在本区域内滚动，页面高度不变（「保持页面一页内做完」）
-     ④ 本月用量：**最下方**，credits 进度条，三档颜色状态
-        正常消耗蓝色 / 接近上限黄色 / 用到池化共享额度红色
+   自上而下四块：
+     ① 八张统计卡（一排 4 个 / 两排）：messages / lifetime tokens /
+        peak tokens / longest chat / current streak / longest streak /
+        peak hour / favorite model，每张带 ⓘ 口径提示
+     ② 贡献日历：**通栏铺满整行**，按自然日标记贡献强度，Less → More 共 5 档
+     ③ 日历下方左右两栏：左＝本月用量（credits 进度条，三档颜色状态
+        正常消耗蓝色 / 接近上限黄色 / 用到池化共享额度红色），
+        右＝Contribution activity（按月分组的贡献流水，展开后在本区域内
+        滚动，页面高度不变）
 
-   两栏用 flex-wrap 而不是两列网格（DESIGN.md 自适应与栅格）：
-   左主栏 flex:4 1 480px，右侧栏 flex:1 1 300px + max-width，
+   下方两栏用 flex-wrap 而不是两列网格（DESIGN.md 自适应与栅格）：
+   左栏 flex:4 1 480px，右栏 flex:1 1 300px + max-width，
    窄屏时自动堆叠，不会把右栏压到内容溢出。
 
    着色语义 3 类：强度（贡献日历，整屏唯一一处热力）+ 状态（用量水位、
@@ -19,7 +20,7 @@ import {
   Card, CardHead, MetricStrip, Heatgrid, HeatLegend,
   Progress, Tag, Button, nf, compactTokens,
 } from "../ds/index.js";
-import { InsetNote } from "./shared.jsx";
+import { InsetNote, usageLevel, QUOTA_WARN_AT } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import {
   ME, CONTRIB_DAYS, CONTRIB_TOTAL, CONTRIB_RANGE,
@@ -31,14 +32,6 @@ const WEEKS = 53;
 const DOW = ["周一", "", "周三", "", "周五", "", ""];
 const CELL = 11;
 const GAP = 3;
-
-/* 用量三档（PRD：正常蓝 / 接近上限黄 / 超额红）。
-   超额 = 用尽本周期配额后开始占用池化共享额度。 */
-function usageLevel(pct) {
-  if (pct >= 100) return { tone: "danger", label: "已用到池化共享额度" };
-  if (pct >= 80) return { tone: "warning", label: "接近上限" };
-  return { tone: "accent", label: "正常消耗" };
-}
 
 export default function Personal() {
   const calendar = React.useMemo(() => {
@@ -57,69 +50,82 @@ export default function Personal() {
   return (
     <>
 
-      {/* ① 五张统计卡 —— 通栏，五项才排得进一行（PRD 示意图是一行五张）。
-          DESIGN.md 视觉预算建议 3–4 项，MetricStrip 的组件声明允许 3–5 项；
-          PRD 明确要五项，且每项都承载独立信息，没有「本轮尚未…」这类
-          零信息凑数指标，因此取 5。 */}
+      {/* ① 八张统计卡 —— 通栏，一排 4 个（宽屏 4 列 / 两排），
+          用 columns 网格模式：DESIGN.md 禁止写死列数，传「单列最小可读宽」，
+          宽屏自然排成 4 列，窄屏自动退成 3 / 2 / 1 列且不会带错分隔线。
+          每项只有 label + 值，无 caption / delta / sparkline —— 本条 strip
+          不承载任何着色语义，留给贡献日历那一处热力。 */}
       <MetricStrip
         animate
+        columns={176}
         items={[
               {
-                key: "biggest", label: M.biggestContribution.label, hint: M.biggestContribution.hint,
-                value: ME.biggestContribution, suffix: "行",
-                caption: `${ME.biggestContributionDate} · ${ME.biggestContributionBranch}`,
+                key: "messages", label: M.messages.label, hint: M.messages.hint,
+                value: ME.messages,
               },
               {
-                key: "busiest", label: M.busiestDay.label, hint: M.busiestDay.hint,
-                value: ME.busiestDay, caption: `${nf(ME.busiestDayRequests)} 次请求`,
-              },
-              {
-                key: "streak", label: M.longestStreak.label, hint: M.longestStreak.hint,
-                value: ME.longestStreak, suffix: "天",
+                key: "life", label: M.lifetimeTokens.label, hint: M.lifetimeTokens.hint,
+                value: Number(life.n), suffix: life.u, format: (n) => n.toFixed(1),
               },
               {
                 key: "peak", label: M.peakTokens.label, hint: M.peakTokens.hint,
                 value: Number(peak.n), suffix: peak.u, format: (n) => n.toFixed(1),
-                caption: ME.peakTokensDate,
               },
               {
-                key: "life", label: M.lifetimeTokens.label, hint: M.lifetimeTokens.hint,
-                value: Number(life.n), suffix: life.u, format: (n) => n.toFixed(2),
+                key: "longestChat", label: M.longestChat.label, hint: M.longestChat.hint,
+                value: ME.longestChat,
+              },
+              {
+                key: "currentStreak", label: M.currentStreak.label, hint: M.currentStreak.hint,
+                value: ME.currentStreak, suffix: "d",
+              },
+              {
+                key: "longestStreak", label: M.longestStreak.label, hint: M.longestStreak.hint,
+                value: ME.longestStreak, suffix: "d",
+              },
+              {
+                key: "peakHour", label: M.peakHour.label, hint: M.peakHour.hint,
+                value: ME.peakHour,
+              },
+              {
+                key: "favoriteModel", label: M.favoriteModel.label, hint: M.favoriteModel.hint,
+                value: ME.favoriteModel,
               },
         ]}
       />
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start", minWidth: 0 }}>
-        {/* ── 左主栏：贡献日历 + 本月用量 ────────────────────── */}
-        <div style={{ flex: "4 1 480px", minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* ② 贡献日历 */}
-          <Card>
-            <CardHead
-              title={M.contributions.label}
-              hint={M.contributions.hint}
-              meta={`${nf(CONTRIB_TOTAL)} contributions in the last year`}
-              actions={<HeatLegend lessLabel="Less" moreLabel="More" />}
-            />
-            <div style={{ overflowX: "auto", paddingBottom: 4, minWidth: 0 }}>
-              <div style={{ display: "flex", gap: 6, alignItems: "flex-start", width: "max-content" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
-                  {DOW.map((d, i) => (
-                    <span key={i} style={{
-                      height: CELL, lineHeight: `${CELL}px`, width: 26, textAlign: "right",
-                      fontSize: "var(--th-text-2xs)", color: "var(--color-fg-muted)", whiteSpace: "nowrap",
-                    }}>{d}</span>
-                  ))}
-                </div>
-                <Heatgrid columns={WEEKS} cellSize={CELL} gap={GAP} data={calendar} />
-              </div>
+      {/* ② 贡献日历 —— 通栏铺满整行（一年 53 周的热力条本就横向，通栏读起来最完整）。 */}
+      <Card>
+        <CardHead
+          title={M.contributions.label}
+          hint={M.contributions.hint}
+          meta={`${nf(CONTRIB_TOTAL)} contributions in the last year`}
+          actions={<HeatLegend lessLabel="Less" moreLabel="More" />}
+        />
+        <div style={{ overflowX: "auto", paddingBottom: 4, minWidth: 0 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "flex-start", width: "max-content" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: GAP }}>
+              {DOW.map((d, i) => (
+                <span key={i} style={{
+                  height: CELL, lineHeight: `${CELL}px`, width: 26, textAlign: "right",
+                  fontSize: "var(--th-text-2xs)", color: "var(--color-fg-muted)", whiteSpace: "nowrap",
+                }}>{d}</span>
+              ))}
             </div>
-            <span style={{ fontSize: "var(--th-text-2xs)", color: "var(--color-fg-subtle)" }}>
-              单日贡献值由当日 commit 行数 / 次数换算后分档，共 5 档，决定当日格子颜色。
-            </span>
-          </Card>
+            <Heatgrid columns={WEEKS} cellSize={CELL} gap={GAP} data={calendar} />
+          </div>
+        </div>
+        <span style={{ fontSize: "var(--th-text-2xs)", color: "var(--color-fg-subtle)" }}>
+          单日贡献值由当日 commit 行数 / 次数换算后分档，共 5 档，决定当日格子颜色。
+        </span>
+      </Card>
 
-          {/* ④ 本月用量 —— PRD 指定在最下方 */}
-          <Card>
+      {/* 日历下方的左右两栏：左＝本月用量，右＝Contribution activity。
+          窄屏自动堆叠，不会把右栏压到内容溢出。 */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start", minWidth: 0 }}>
+        {/* ④ 本月用量 */}
+        <div style={{ flex: "4 1 480px", minWidth: 0, display: "flex" }}>
+          <Card style={{ flex: 1, minWidth: 0 }}>
             <CardHead
               title={M.monthlyUsage.label}
               hint={M.monthlyUsage.hint}
@@ -151,14 +157,14 @@ export default function Personal() {
             <Progress value={ME.usedCredits} max={ME.quotaCredits} tone={level.tone} />
             <InsetNote>
               颜色状态：<strong style={{ color: "var(--color-fg)" }}>正常消耗</strong>蓝色 ·
-              <strong style={{ color: "var(--color-fg)" }}> 接近上限</strong>（≥80%）黄色 ·
+              <strong style={{ color: "var(--color-fg)" }}> 接近上限</strong>（≥{QUOTA_WARN_AT}%）黄色 ·
               <strong style={{ color: "var(--color-fg)" }}> 用到池化共享额度</strong>（≥100%）红色。
               额度{ME.resetPolicy}，下次重置 {ME.nextReset}。
             </InsetNote>
           </Card>
         </div>
 
-        {/* ── ③ 右侧边：Contribution activity ─────────────────── */}
+        {/* ── ③ 右栏：Contribution activity ─────────────────── */}
         <div style={{ flex: "1 1 300px", minWidth: 0, maxWidth: 420, display: "flex" }}>
           <ContributionActivity />
         </div>
