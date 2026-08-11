@@ -8,10 +8,9 @@
    本模块不用强度色，也不用分类色 —— 留给下面三个模块。 */
 import React from "react";
 import {
-  Card, CardHead, MetricStrip, TokenMeter, TrendDelta, Banner,
-  StatusChip, compact, nf,
+  Card, CardHead, MetricStrip, TokenMeter, TrendDelta, StatusChip, compact, nf,
 } from "../ds/index.js";
-import { Section, SECTION_IDS, usageLevel, QUOTA_WARN_AT, ChartNote } from "./shared.jsx";
+import { Section, SECTION_IDS, usageLevel, QUOTA_WARN_AT } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import { ENTERPRISE, MY_TEAM, WEEK_KPI, QUOTA } from "../data/mock.js";
 
@@ -30,17 +29,6 @@ export default function KpiCards({ ctx }) {
 
   return (
     <Section id={SECTION_IDS.kpi} title="指标卡">
-      {/* 超额弹出提示 —— 只在触达预警线时出现 */}
-      {over && (
-        <Banner
-          tone={pct >= 100 ? "danger" : "warning"}
-          title={`今日 Token 额度已用 ${pct.toFixed(0)}%，按当前速率约 ${today.burnoutHours} 小时后耗尽`}
-          description={pct >= 100
-            ? "已进入池化共享额度，超出部分转按量计费。建议核对高消耗工程的上下文策略。"
-            : `已越过 ${QUOTA_WARN_AT}% 预警线。耗尽后超出部分转按量计费。`}
-        />
-      )}
-
       {/* 本周关键指标卡（5 项） */}
       <MetricStrip
         animate
@@ -89,9 +77,6 @@ export default function KpiCards({ ctx }) {
               residualLabel="未使用"
               showTotal={false}
             />
-            <ChartNote>
-              {`覆盖率 ${rate}%，较上月 +${ENTERPRISE.coverageDeltaPP}pp；未使用 ${nf(Math.round(ENTERPRISE.unused * k))} 人是确定性增量。`}
-            </ChartNote>
           </Card>
         </div>
 
@@ -104,17 +89,46 @@ export default function KpiCards({ ctx }) {
               meta={`预警线 ${QUOTA_WARN_AT}%`}
             />
             {/* 只渲染当前这一档状态。PRD 里并排画了「超水位」与「安全」两张，
-                是为了同时示意两种视觉状态，实际界面上只有一张随当前水位变色。 */}
-            <QuotaGauge q={QUOTA.today} />
-            <ChartNote tone={pct >= 100 ? "danger" : pct >= QUOTA_WARN_AT ? "warning" : "neutral"}>
-              {pct >= QUOTA_WARN_AT
-                ? `已越过 ${QUOTA_WARN_AT}% 预警线，约 ${today.burnoutHours} 小时后耗尽，耗尽即转按量计费。`
-                : `水位 ${pct.toFixed(0)}%，低于 ${QUOTA_WARN_AT}% 预警线，按当前速率今日额度充足。`}
-            </ChartNote>
+                是为了同时示意两种视觉状态，实际界面上只有一张随当前水位变色。
+                超额提示按 PRD「超额弹出提示」做成水位条右侧的弹出气泡，
+                只在越过预警线时出现，不占区块层的横幅位。 */}
+            <div style={{ display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap", minWidth: 0 }}>
+              <QuotaGauge q={QUOTA.today} />
+              {over && (
+                <QuotaAlert
+                  tone={pct >= 100 ? "danger" : "warning"}
+                  title={`额度已用 ${pct.toFixed(0)}%，约 ${today.burnoutHours} 小时后耗尽`}
+                  body={pct >= 100
+                    ? "已进入池化共享额度，超出部分转按量计费。"
+                    : `已越过 ${QUOTA_WARN_AT}% 预警线，耗尽后超出部分转按量计费。`}
+                />
+              )}
+            </div>
           </Card>
         </div>
       </div>
     </Section>
+  );
+}
+
+/* 超额弹出提示：贴在水位条右侧的气泡，左侧带箭头指回水位。
+   -bg 涂底、-fg 写字（状态色三档分工），箭头与气泡同色。
+   它是提示不是操作，不可点击，也就不占品牌色。 */
+function QuotaAlert({ tone, title, body }) {
+  return (
+    <div style={{
+      position: "relative", flex: "1 1 200px", minWidth: 0,
+      background: `var(--color-${tone}-bg)`, color: `var(--color-${tone}-fg)`,
+      borderRadius: "var(--th-radius-sm)", padding: "10px 12px",
+      display: "flex", flexDirection: "column", gap: 2,
+    }}>
+      <span aria-hidden="true" style={{
+        position: "absolute", left: -5, top: 14, width: 10, height: 10,
+        background: `var(--color-${tone}-bg)`, transform: "rotate(45deg)", borderRadius: 1,
+      }} />
+      <span style={{ fontSize: "var(--th-text-sm)", fontWeight: 600, lineHeight: 1.4 }}>{title}</span>
+      <span style={{ fontSize: "var(--th-text-xs)", lineHeight: 1.6, opacity: 0.92 }}>{body}</span>
+    </div>
   );
 }
 

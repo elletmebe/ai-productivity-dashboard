@@ -93,10 +93,10 @@ export default function Consumption({ ctx }) {
           yFormat={compact}
           refLine={{ value: dailyMean, label: `均值 ${compact(dailyMean)}` }}
         />
-        <ChartNote>
-          {`日均 ${compact(dailyMean)} tokens，随工作日起伏、无异常尖峰，节奏可预期。`}
-        </ChartNote>
       </Card>
+      <ChartNote>
+        {`日均 ${compact(dailyMean)} tokens，随工作日起伏、无异常尖峰，节奏可预期。`}
+      </ChartNote>
 
       {/* ── 2 / 3. 模型分布与工程分布，共用同一张图与图例 ── */}
       <Card>
@@ -115,14 +115,14 @@ export default function Consumption({ ctx }) {
           yFormat={(v) => `¥${compact(v)}`}
         />
 
-        <ChartNote>
-          {dim === "model"
-            ? `ROI 最高${bestModel.label} ${bestModel.roi} 行/元，最低${worstModel.label} ${worstModel.roi}，后者可优先收敛。`
-            : dim === "repo"
-            ? `ROI 最高 ${bestRepo.label} ${bestRepo.roi} 行/元；占比最高的 ${topRepo.label} 仅 ${topRepo.roi}，优先优化。`
-            : `近 ${days} 天合计 ¥${nf(total, 0)}，日均 ¥${nf(Math.round(total / days))}，周末回落明显。`}
-        </ChartNote>
       </Card>
+      <ChartNote>
+        {dim === "model"
+          ? `ROI 最高${bestModel.label} ${bestModel.roi} 行/元，最低${worstModel.label} ${worstModel.roi}，后者可优先收敛。`
+          : dim === "repo"
+          ? `ROI 最高 ${bestRepo.label} ${bestRepo.roi} 行/元；占比最高的 ${topRepo.label} 仅 ${topRepo.roi}，优先优化。`
+          : `近 ${days} 天合计 ¥${nf(total, 0)}，日均 ¥${nf(Math.round(total / days))}，周末回落明显。`}
+      </ChartNote>
 
       {/* ── 明细表 ── */}
       {src && (

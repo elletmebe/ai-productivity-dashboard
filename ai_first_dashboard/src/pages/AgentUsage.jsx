@@ -89,10 +89,10 @@ export default function AgentUsage({ ctx }) {
           yFormat={(v) => nf(v)}
           unit=" 人"
         />
-        <ChartNote>
-          {`活跃度长期趋近 ${nf(Math.round(dauMean))} 人/日，IDE 端占 ${((mean(dau, "ide") / dauMean) * 100).toFixed(0)}%，两端同步波动。`}
-        </ChartNote>
       </Card>
+      <ChartNote>
+        {`活跃度长期趋近 ${nf(Math.round(dauMean))} 人/日，IDE 端占 ${((mean(dau, "ide") / dauMean) * 100).toFixed(0)}%，两端同步波动。`}
+      </ChartNote>
 
       {/* ── 对话轮次 / Commit 两条趋势并排，供交叉验证 ── */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "stretch", minWidth: 0 }}>
@@ -168,10 +168,10 @@ export default function AgentUsage({ ctx }) {
           yFormat={(v) => compact(v)}
           y2Format={(v) => `${v.toFixed(0)}%`}
         />
-        <ChartNote>
-          {`生成 ${compact(genTotal)} 行、采纳 ${compact(accTotal)} 行，采纳率 ${accRate.toFixed(1)}%，整体趋势向上。`}
-        </ChartNote>
       </Card>
+      <ChartNote>
+        {`生成 ${compact(genTotal)} 行、采纳 ${compact(accTotal)} 行，采纳率 ${accRate.toFixed(1)}%，整体趋势向上。`}
+      </ChartNote>
     </Section>
   );
 }

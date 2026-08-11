@@ -138,10 +138,10 @@ export default function FunnelRoi({ ctx }) {
           y2Format={(v) => v.toFixed(0)}
         />
 
-        <ChartNote>
-          {`ROI 从 ${trend[0].roi} 升至 ${trend[trend.length - 1].roi} 行/元，投入同期增长 ${(((trend[trend.length-1].invest - trend[0].invest) / trend[0].invest) * 100).toFixed(0)}%，杠杆放大。`}
-        </ChartNote>
       </Card>
+      <ChartNote>
+        {`ROI 从 ${trend[0].roi} 升至 ${trend[trend.length - 1].roi} 行/元，投入同期增长 ${(((trend[trend.length-1].invest - trend[0].invest) / trend[0].invest) * 100).toFixed(0)}%，杠杆放大。`}
+      </ChartNote>
 
       {/* ── Part 3 · 排行榜（排名维度为结果指标）──────────────
           PRD v3 四个维度：AI 采纳代码量 / Token 消耗（团队看人均、个人看
