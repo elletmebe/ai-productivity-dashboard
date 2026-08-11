@@ -2,16 +2,16 @@
      · 最上方展现关键指标卡（本周）：ROI / 交付量 / 采纳率 / AI 代码占比 /
        单轮对话平均贡献
      · Agent 使用覆盖率
-     · Token 额度：超额 / 未超额 两种状态，超额弹出提示
+     · Token 额度：一张卡随当前水位在三档状态间切换，越过预警线弹出提示
 
    着色语义 2 类：状态（涨跌、额度水位、超额提示）+ 构成（覆盖率三层）。
    本模块不用强度色，也不用分类色 —— 留给下面三个模块。 */
 import React from "react";
 import {
   Card, CardHead, MetricStrip, TokenMeter, TrendDelta, Banner,
-  StatusChip, Tooltip, compact, nf,
+  StatusChip, compact, nf,
 } from "../ds/index.js";
-import { Section, SECTION_IDS, usageLevel, QUOTA_WARN_AT } from "./shared.jsx";
+import { Section, SECTION_IDS, usageLevel, QUOTA_WARN_AT, ChartNote } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import { ENTERPRISE, MY_TEAM, WEEK_KPI, QUOTA } from "../data/mock.js";
 
@@ -89,10 +89,13 @@ export default function KpiCards({ ctx }) {
               residualLabel="未使用"
               showTotal={false}
             />
+            <ChartNote>
+              {`覆盖率 ${rate}%，较上月 +${ENTERPRISE.coverageDeltaPP}pp；未使用 ${nf(Math.round(ENTERPRISE.unused * k))} 人是确定性增量。`}
+            </ChartNote>
           </Card>
         </div>
 
-        {/* Token 额度水位：两种状态并排演示 */}
+        {/* Token 额度水位 */}
         <div style={{ flex: "2 1 320px", minWidth: 0, display: "flex" }}>
           <Card style={{ flex: 1, minWidth: 0 }}>
             <CardHead
@@ -100,13 +103,14 @@ export default function KpiCards({ ctx }) {
               hint={`当日已消耗 token ÷ 当日额度。越过 ${QUOTA_WARN_AT}% 预警线转黄，用尽后进入池化共享额度转红，超出部分按量计费。`}
               meta={`预警线 ${QUOTA_WARN_AT}%`}
             />
-            <div style={{
-              display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: 12, minWidth: 0,
-            }}>
-              <QuotaGauge q={QUOTA.today} />
-              <QuotaGauge q={QUOTA.yesterday} />
-            </div>
+            {/* 只渲染当前这一档状态。PRD 里并排画了「超水位」与「安全」两张，
+                是为了同时示意两种视觉状态，实际界面上只有一张随当前水位变色。 */}
+            <QuotaGauge q={QUOTA.today} />
+            <ChartNote tone={pct >= 100 ? "danger" : pct >= QUOTA_WARN_AT ? "warning" : "neutral"}>
+              {pct >= QUOTA_WARN_AT
+                ? `已越过 ${QUOTA_WARN_AT}% 预警线，约 ${today.burnoutHours} 小时后耗尽，耗尽即转按量计费。`
+                : `水位 ${pct.toFixed(0)}%，低于 ${QUOTA_WARN_AT}% 预警线，按当前速率今日额度充足。`}
+            </ChartNote>
           </Card>
         </div>
       </div>
@@ -143,11 +147,6 @@ function QuotaGauge({ q }) {
         </span>
         <span className="th-nums" style={{ fontSize: "var(--th-text-2xs)", color: "var(--color-fg-muted)" }}>
           {q.label} · {compact(q.used)} / {compact(q.total)}
-        </span>
-        <span style={{ fontSize: "var(--th-text-2xs)", color: level.tone === "accent" ? "var(--color-fg-subtle)" : `var(--color-${level.tone}-fg)`, lineHeight: 1.6 }}>
-          {q.burnoutHours
-            ? `约 ${q.burnoutHours} 小时后耗尽，超出部分转按量计费`
-            : "按当前速率额度充足"}
         </span>
       </div>
     </div>

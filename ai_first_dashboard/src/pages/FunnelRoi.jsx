@@ -12,12 +12,12 @@
 import React from "react";
 import {
   Card, CardHead, Chart, Segmented, Divider,
-  TrendDelta, compact, nf,
+  TrendDelta, compact,
 } from "../ds/index.js";
-import { Section, SECTION_IDS, InsetNote, KV } from "./shared.jsx";
+import { Section, SECTION_IDS, InsetNote, ChartNote, KV } from "./shared.jsx";
 import RankCard from "./RankCard.jsx";
 import { M } from "../data/metrics.js";
-import { FUNNEL_SCOPES, funnelOf, ROI_TREND_MONTHLY, RESULT_DIMS, ENTERPRISE } from "../data/mock.js";
+import { FUNNEL_SCOPES, funnelOf, ROI_TREND_MONTHLY, RESULT_DIMS, TEAMS } from "../data/mock.js";
 
 const SCOPE_OPTS = [
   { label: "组织整体", value: "org" },
@@ -42,6 +42,11 @@ export default function FunnelRoi({ ctx }) {
   const invest = trend.reduce((s, d) => s + d.invest, 0);
   const ret = trend.reduce((s, d) => s + d.ret, 0);
   const roi = ret / invest;
+
+  /* 交叉分析用：人均 token 消耗榜首，及团队 ROI 中位数。
+     两者都从同一份 TEAMS 现算，结论会随数据自动翻面。 */
+  const topSpender = [...TEAMS].sort((a, b) => b.tokensPerHead - a.tokensPerHead)[0];
+  const medianRoi = [...TEAMS].map((t) => t.roi).sort((a, b) => a - b)[Math.floor(TEAMS.length / 2)];
 
   return (
     <Section id={SECTION_IDS.funnel} title="SDLC / ROI 结果指标">
@@ -93,13 +98,12 @@ export default function FunnelRoi({ ctx }) {
               </div>
             </InsetNote>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <KV label="整体存活率（首步 → 末步）" value={`${overall.toFixed(1)}%`} />
-              <KV label="转化效率判读" value={overall >= 40 ? "漏斗平缓，转化健康" : "漏斗陡峭，需排查采纳后流失"} mono={false} />
-              <KV label={M.reworkRate.label} value={`${ENTERPRISE.reworkRate}%`} />
-            </div>
+            <KV label="整体存活率（首步 → 末步）" value={`${overall.toFixed(1)}%`} />
           </div>
         </div>
+        <ChartNote>
+          {`最大流失在采纳环节（保留 ${acceptRate.toFixed(1)}%）；进 PR 后留存 ${retentionRate.toFixed(1)}%、合入 ${mergeRate.toFixed(1)}%，后段健康。`}
+        </ChartNote>
       </Card>
 
       {/* ── Part 2 · ROI 趋势 ────────────────────────────────── */}
@@ -133,14 +137,9 @@ export default function FunnelRoi({ ctx }) {
           y2Format={(v) => v.toFixed(0)}
         />
 
-        <div style={{
-          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 12, minWidth: 0,
-        }}>
-          <KV label="Invest · token 金额" value={`¥${nf(invest, 2)}`} />
-          <KV label="Return · 最终留存代码行数" value={`${compact(ret)} 行`} />
-          <KV label="杠杆" value={`每 ¥1 撬动 ${roi.toFixed(1)} 行留存代码`} />
-        </div>
+        <ChartNote>
+          {`ROI 从 ${trend[0].roi} 升至 ${trend[trend.length - 1].roi} 行/元，投入同期增长 ${(((trend[trend.length-1].invest - trend[0].invest) / trend[0].invest) * 100).toFixed(0)}%，杠杆放大。`}
+        </ChartNote>
       </Card>
 
       {/* ── Part 3 · 排行榜（排名维度为结果指标）──────────────
@@ -172,48 +171,14 @@ export default function FunnelRoi({ ctx }) {
         ))}
       </div>
 
-      <Card>
-        <CardHead title="交叉分析" hint="把四个榜单叠起来读：消耗高但 ROI 低的对象，是成本优化的第一顺位。" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
-          <CrossRow
-            icon="ri-scales-3-line"
-            title="产出与效率背离"
-            body="人均 token 消耗榜首若不在 ROI 榜前三，说明「烧得多」没换来「产出高」，该团队是成本优化的第一顺位。"
-          />
-          <CrossRow
-            icon="ri-seedling-line"
-            title="可复制样本"
-            body="对话平均贡献行数与 ROI 双高的团队，其模型选型与上下文策略值得沉淀成实践并向中低分层推广。"
-          />
-          <CrossRow
-            icon="ri-user-follow-line"
-            title="介入优先级"
-            body="AI 采纳代码量低且 ROI 低的对象，问题在用法不在额度 —— 优先做用法培训，而不是加额度。"
-          />
-        </div>
-      </Card>
+      {/* 交叉分析：把四个榜单叠起来读，收敛到一个可执行的指向 */}
+      <ChartNote tone={topSpender && topSpender.roi < medianRoi ? "warning" : "neutral"}>
+        {topSpender && topSpender.roi < medianRoi
+          ? `人均消耗榜首${topSpender.name} ROI 仅 ${topSpender.roi}，低于中位 ${medianRoi.toFixed(1)}：烧得多没换来产出。`
+          : `人均消耗与 ROI 排名一致，投入产出匹配，可向中低分层推广高分层用法。`}
+      </ChartNote>
 
     </Section>
-  );
-}
-
-/* 交叉分析的一条结论：图标 + 标题 + 一段说明。
-   图标走 muted 数据墨色，不新增着色语义。 */
-function CrossRow({ icon, title, body }) {
-  return (
-    <div style={{ display: "flex", gap: 10, alignItems: "flex-start", minWidth: 0 }}>
-      <i className={icon} aria-hidden="true" style={{
-        fontSize: 16, lineHeight: 1.5, flexShrink: 0, color: "var(--color-fg-subtle)",
-      }} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-        <span style={{ fontSize: "var(--th-text-sm)", fontWeight: 600, color: "var(--color-fg)", lineHeight: 1.5 }}>
-          {title}
-        </span>
-        <span style={{ fontSize: "var(--th-text-xs)", color: "var(--color-fg-muted)", lineHeight: 1.7 }}>
-          {body}
-        </span>
-      </div>
-    </div>
   );
 }
 

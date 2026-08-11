@@ -101,6 +101,30 @@ export function usageLevel(pct) {
   return { tone: "accent", label: "正常消耗", chip: "info" };
 }
 
+/* ── ChartNote ──────────────────────────────────────────────────
+   图表下方的一句话分析。PRD 里所有标黄的句子都是这个形态：
+   紧贴图表、纯文字备注，不做成卡片也不加底色（卡片会把一句话撑成
+   一个区块，读起来比图表本身还重）。
+
+   三条约束（PRD 明确）：
+     · 严格控制字数 —— 一句，40 字上下，不铺成段落
+     · 看图说话 —— 只讲这张图上能看出来的事，数值全部从同一份数据现算
+     · 收敛逻辑 —— 结句给一个判断或指向，不停在罗列 */
+export function ChartNote({ children, tone = "neutral" }) {
+  const color = tone === "neutral" ? "var(--color-fg-muted)" : `var(--color-${tone}-fg)`;
+  return (
+    <p style={{
+      display: "flex", alignItems: "flex-start", gap: 6, margin: 0, minWidth: 0,
+      fontSize: "var(--th-text-xs)", color, lineHeight: 1.7,
+    }}>
+      <i className="ri-quill-pen-line" aria-hidden="true" style={{
+        fontSize: 13, lineHeight: 1.6, flexShrink: 0, opacity: 0.75,
+      }} />
+      <span style={{ minWidth: 0 }}>{children}</span>
+    </p>
+  );
+}
+
 /** 卡内下沉说明面板。一张卡内最多一种内嵌底色（视觉预算）。 */
 export function InsetNote({ children, style }) {
   return (

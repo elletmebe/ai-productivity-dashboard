@@ -11,9 +11,9 @@
    结论的语气）+ 数据墨色（均值虚线）。本模块不用强度色。 */
 import React from "react";
 import {
-  Card, CardHead, Chart, Segmented, Banner, TrendDelta, compact, nf,
+  Card, CardHead, Chart, Segmented, TrendDelta, compact, nf,
 } from "../ds/index.js";
-import { Section, SECTION_IDS, InsetNote, KV } from "./shared.jsx";
+import { Section, SECTION_IDS, ChartNote } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import {
   ENTERPRISE, MY_TEAM, DAU_BY_CLIENT, TURNS_TREND, COMMIT_TREND,
@@ -89,10 +89,9 @@ export default function AgentUsage({ ctx }) {
           yFormat={(v) => nf(v)}
           unit=" 人"
         />
-        <InsetNote>
-          DAU 分析：人员活跃度整体长期趋近于 <strong style={{ color: "var(--color-fg)" }}>{nf(Math.round(dauMean))} 人/日</strong>，
-          其中 IDE 端占 {((mean(dau, "ide") / dauMean) * 100).toFixed(0)}%、插件端占 {((mean(dau, "plugin") / dauMean) * 100).toFixed(0)}%。
-        </InsetNote>
+        <ChartNote>
+          {`活跃度长期趋近 ${nf(Math.round(dauMean))} 人/日，IDE 端占 ${((mean(dau, "ide") / dauMean) * 100).toFixed(0)}%，两端同步波动。`}
+        </ChartNote>
       </Card>
 
       {/* ── 对话轮次 / Commit 两条趋势并排，供交叉验证 ── */}
@@ -114,6 +113,9 @@ export default function AgentUsage({ ctx }) {
               yFormat={(v) => nf(v)}
               refLine={{ value: turnsMean, label: `均值 ${nf(Math.round(turnsMean))}` }}
             />
+            <ChartNote>
+              {`日均 ${nf(Math.round(turnsMean))} 轮，周末回落至工作日约 ${((mean(turns.filter(d=>d.weekend))/mean(turns.filter(d=>!d.weekend)))*100).toFixed(0)}%，节奏跟随工作日。`}
+            </ChartNote>
           </Card>
         </div>
 
@@ -134,22 +136,19 @@ export default function AgentUsage({ ctx }) {
               yFormat={(v) => nf(v)}
               refLine={{ value: commitMean, label: `均值 ${nf(Math.round(commitMean))}` }}
             />
+            <ChartNote>
+              {`日均 ${nf(Math.round(commitMean))} 次，曲线形态与对话轮次一致，可直接比涨幅。`}
+            </ChartNote>
           </Card>
         </div>
       </div>
 
-      {/* ── 交叉验证结论 ── */}
-      <Banner
-        tone={outpaced ? "warning" : "success"}
-        title={outpaced
-          ? "对话轮次涨幅高于 Commit 涨幅：AI 使用更加频繁，但产出效率没跟上"
-          : "Commit 涨幅高于对话轮次涨幅：AI 使用效能大幅提升、产能显著扩张"}
-        description={`近 30 天对话轮次涨幅 ${turnsGrowth.toFixed(1)}%，Commit 涨幅 ${commitGrowth.toFixed(1)}%，相差 ${gap.toFixed(1)}pp。${
-          outpaced
-            ? "建议下钻到单轮对话平均贡献行数排行，定位哪些团队把轮次转化成了产出。"
-            : "同样的对话量换来了更多提交，可把高效团队的用法沉淀成实践。"
-        }`}
-      />
+      {/* ── 使用趋势分析：两条趋势的交叉验证（PRD 标黄原句）── */}
+      <ChartNote tone={outpaced ? "warning" : "success"}>
+        {outpaced
+          ? `轮次涨幅 ${turnsGrowth.toFixed(1)}% 高于 Commit ${commitGrowth.toFixed(1)}%：AI 用得更频繁，产出效率没跟上。`
+          : `Commit 涨幅 ${commitGrowth.toFixed(1)}% 高于轮次 ${turnsGrowth.toFixed(1)}%：AI 使用效能提升，产能显著扩张。`}
+      </ChartNote>
 
       {/* ── InfCode 使用分析 ── */}
       <Card>
@@ -172,14 +171,9 @@ export default function AgentUsage({ ctx }) {
           yFormat={(v) => compact(v)}
           y2Format={(v) => `${v.toFixed(0)}%`}
         />
-        <div style={{
-          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 12, minWidth: 0,
-        }}>
-          <KV label={M.aiLines.label} value={`${compact(genTotal)} 行`} />
-          <KV label={M.accepted.label} value={`${compact(accTotal)} 行`} />
-          <KV label={M.acceptRate.label} value={`${accRate.toFixed(1)}%`} />
-        </div>
+        <ChartNote>
+          {`生成 ${compact(genTotal)} 行、采纳 ${compact(accTotal)} 行，采纳率 ${accRate.toFixed(1)}%，整体趋势向上。`}
+        </ChartNote>
       </Card>
     </Section>
   );

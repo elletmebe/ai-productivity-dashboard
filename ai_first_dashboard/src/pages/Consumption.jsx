@@ -12,10 +12,9 @@
    状态（ROI 高低的结论语气）+ 表面层次（口径 inset）。 */
 import React from "react";
 import {
-  Card, CardHead, Chart, Segmented, DataTable, Button, StatusChip,
-  compact, nf,
+  Card, CardHead, Chart, Segmented, DataTable, Button, compact, nf,
 } from "../ds/index.js";
-import { Section, SECTION_IDS, InsetNote, rangeDays } from "./shared.jsx";
+import { Section, SECTION_IDS, ChartNote, rangeDays } from "./shared.jsx";
 import { M } from "../data/metrics.js";
 import {
   MODELS, REPOS, spendSeries, TOKEN_DAILY, MY_TEAM, ENTERPRISE,
@@ -69,6 +68,7 @@ export default function Consumption({ ctx }) {
   const bestModel = bestBy(MODELS, "roi");
   const worstModel = worstBy(MODELS, "roi");
   const bestRepo = bestBy(REPOS, "roi");
+  const topRepo = bestBy(REPOS, "share");
 
   return (
     <Section id={SECTION_IDS.consumption} title="消耗来源（from tokenhub）">
@@ -93,6 +93,9 @@ export default function Consumption({ ctx }) {
           yFormat={compact}
           refLine={{ value: dailyMean, label: `均值 ${compact(dailyMean)}` }}
         />
+        <ChartNote>
+          {`日均 ${compact(dailyMean)} tokens，随工作日起伏、无异常尖峰，节奏可预期。`}
+        </ChartNote>
       </Card>
 
       {/* ── 2 / 3. 模型分布与工程分布，共用同一张图与图例 ── */}
@@ -112,28 +115,14 @@ export default function Consumption({ ctx }) {
           yFormat={(v) => `¥${compact(v)}`}
         />
 
-        <InsetNote>{DIM_NOTE[dim]}</InsetNote>
+        <ChartNote>
+          {dim === "model"
+            ? `ROI 最高${bestModel.label} ${bestModel.roi} 行/元，最低${worstModel.label} ${worstModel.roi}，后者可优先收敛。`
+            : dim === "repo"
+            ? `ROI 最高 ${bestRepo.label} ${bestRepo.roi} 行/元；占比最高的 ${topRepo.label} 仅 ${topRepo.roi}，优先优化。`
+            : `近 ${days} 天合计 ¥${nf(total, 0)}，日均 ¥${nf(Math.round(total / days))}，周末回落明显。`}
+        </ChartNote>
       </Card>
-
-      {/* ROI 结论 —— PRD：「ROI 最高的模型 / 最低的模型是」「ROI 最高的项目是」 */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "stretch", minWidth: 0 }}>
-        <div style={{ flex: "1 1 340px", minWidth: 0, display: "flex" }}>
-          <Card style={{ flex: 1, minWidth: 0 }}>
-            <CardHead title="模型 ROI" hint="该模型产出的留存代码行数 ÷ 它的消耗金额，单位 行/元。用于回答「哪个模型最划算」。" />
-            <RoiVerdict tone="success" caption="ROI 最高的模型" name={bestModel.label} roi={bestModel.roi} share={bestModel.share} />
-            <RoiVerdict tone="danger" caption="ROI 最低的模型" name={worstModel.label} roi={worstModel.roi} share={worstModel.share} />
-          </Card>
-        </div>
-
-        <div style={{ flex: "1 1 340px", minWidth: 0, display: "flex" }}>
-          <Card style={{ flex: 1, minWidth: 0 }}>
-            <CardHead title="项目 ROI" hint="该工程产出的留存代码行数 ÷ 它的消耗金额，单位 行/元。工程即调用发生的代码仓库。" />
-            <RoiVerdict tone="success" caption="ROI 最高的项目" name={bestRepo.label} roi={bestRepo.roi} share={bestRepo.share} mono />
-            <RoiVerdict tone="neutral" caption="消耗占比最高的项目" name={bestBy(REPOS, "share").label}
-                        roi={bestBy(REPOS, "share").roi} share={bestBy(REPOS, "share").share} mono />
-          </Card>
-        </div>
-      </div>
 
       {/* ── 明细表 ── */}
       {src && (
@@ -199,28 +188,5 @@ export default function Consumption({ ctx }) {
         </Card>
       )}
     </Section>
-  );
-}
-
-/* ROI 结论行：状态 chip 说好坏，数值等宽，占比降为 muted 元信息。 */
-function RoiVerdict({ tone, caption, name, roi, share, mono }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-      <StatusChip tone={tone === "neutral" ? "neutral" : tone}>{caption}</StatusChip>
-      <span style={{
-        fontSize: "var(--th-text-sm)", fontWeight: 600, color: "var(--color-fg)",
-        fontFamily: mono ? "var(--th-font-mono)" : "var(--th-font-cn)",
-        minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-      }}>{name}</span>
-      <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "baseline", gap: 6, flexShrink: 0 }}>
-        <span className="th-nums" style={{ fontSize: "var(--th-text-md)", fontWeight: 600, color: "var(--color-fg)" }}>
-          {roi.toFixed(1)}
-        </span>
-        <span style={{ fontSize: "var(--th-text-2xs)", color: "var(--color-fg-muted)" }}>行/元</span>
-        <span className="th-nums" style={{ fontSize: "var(--th-text-2xs)", color: "var(--color-fg-subtle)" }}>
-          占比 {share}%
-        </span>
-      </span>
-    </div>
   );
 }
