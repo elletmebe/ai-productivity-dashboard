@@ -101,10 +101,11 @@ export default function FunnelRoi({ ctx }) {
             <KV label="整体存活率（首步 → 末步）" value={`${overall.toFixed(1)}%`} />
           </div>
         </div>
-        <ChartNote>
-          {`最大流失在采纳环节（保留 ${acceptRate.toFixed(1)}%）；进 PR 后留存 ${retentionRate.toFixed(1)}%、合入 ${mergeRate.toFixed(1)}%，后段健康。`}
-        </ChartNote>
       </Card>
+
+      <ChartNote>
+        {`最大流失在采纳环节（保留 ${acceptRate.toFixed(1)}%）；进 PR 后留存 ${retentionRate.toFixed(1)}%、合入 ${mergeRate.toFixed(1)}%，后段健康。`}
+      </ChartNote>
 
       {/* ── Part 2 · ROI 趋势 ────────────────────────────────── */}
       <Card>

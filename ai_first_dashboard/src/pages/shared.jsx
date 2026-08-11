@@ -102,26 +102,42 @@ export function usageLevel(pct) {
 }
 
 /* ── ChartNote ──────────────────────────────────────────────────
-   图表下方的一句话分析。PRD 里所有标黄的句子都是这个形态：
-   紧贴图表、纯文字备注，不做成卡片也不加底色（卡片会把一句话撑成
-   一个区块，读起来比图表本身还重）。
+   图表下方的分析结论。PRD 里所有标黄的句子都是这个形态。
+
+   它不是脚注，是这张图要读出来的关键信息，所以给足视觉重量：
+   13px 近黑正文（不是 12px muted）+ --color-surface-quiet 打底。
+   quiet 是 4% 品牌 tint，DESIGN.md 明确把它留给「AI 输出区、汇总行、
+   被强调区块」，也是原则 1「品牌色只给可交互元素」唯一许可的例外 ——
+   它不可点击、不带描边强调，不构成交互暗示。
+   卡内只用底色不加描边（组件嵌套：一个边界只画一次）；一张卡里它与
+   InsetNote 不得同时出现（视觉预算：卡内内嵌底色 ≤1 种）。
 
    三条约束（PRD 明确）：
      · 严格控制字数 —— 一句，40 字上下，不铺成段落
      · 看图说话 —— 只讲这张图上能看出来的事，数值全部从同一份数据现算
      · 收敛逻辑 —— 结句给一个判断或指向，不停在罗列 */
-export function ChartNote({ children, tone = "neutral" }) {
-  const color = tone === "neutral" ? "var(--color-fg-muted)" : `var(--color-${tone}-fg)`;
+export function ChartNote({ label, children, tone = "neutral" }) {
+  const accent = tone === "neutral" ? "var(--brand-600)" : `var(--color-${tone}-fg)`;
   return (
-    <p style={{
-      display: "flex", alignItems: "flex-start", gap: 6, margin: 0, minWidth: 0,
-      fontSize: "var(--th-text-xs)", color, lineHeight: 1.7,
+    <div style={{
+      display: "flex", alignItems: "flex-start", gap: 8, minWidth: 0,
+      background: "var(--color-surface-quiet)",
+      borderRadius: "var(--th-radius-sm)",
+      padding: "10px 12px",
     }}>
-      <i className="ri-quill-pen-line" aria-hidden="true" style={{
-        fontSize: 13, lineHeight: 1.6, flexShrink: 0, opacity: 0.75,
+      <i className="ri-lightbulb-flash-line" aria-hidden="true" style={{
+        fontSize: 15, lineHeight: 1.5, flexShrink: 0, color: accent,
       }} />
-      <span style={{ minWidth: 0 }}>{children}</span>
-    </p>
+      <p style={{
+        margin: 0, minWidth: 0,
+        fontSize: "var(--th-text-sm)", color: "var(--color-fg)", lineHeight: 1.7,
+      }}>
+        {label && (
+          <strong style={{ fontWeight: 600, color: accent, marginRight: 6 }}>{label}</strong>
+        )}
+        {children}
+      </p>
+    </div>
   );
 }
 

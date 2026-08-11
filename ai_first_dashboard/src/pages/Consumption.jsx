@@ -12,7 +12,7 @@
    状态（ROI 高低的结论语气）+ 表面层次（口径 inset）。 */
 import React from "react";
 import {
-  Card, CardHead, Chart, Segmented, DataTable, Button, compact, nf,
+  Card, CardHead, Chart, Segmented, DataTable, compact, nf,
 } from "../ds/index.js";
 import { Section, SECTION_IDS, ChartNote, rangeDays } from "./shared.jsx";
 import { M } from "../data/metrics.js";
@@ -132,13 +132,6 @@ export default function Consumption({ ctx }) {
               title={dim === "model" ? "模型明细" : "工程明细"}
               hint={`${M.calls.hint}；${M.inOut.hint}`}
               meta={`${src.length} 项 · 与上方图例同色`}
-              actions={
-                /* 4. Cost breakdown：更多成本分析外链至 TokenHub */
-                <Button variant="link" icon="ri-external-link-line" iconPosition="right"
-                        onClick={() => ctx.openTokenHub?.("cost-breakdown")}>
-                  Cost breakdown
-                </Button>
-              }
             />
           </div>
           <DataTable
@@ -185,6 +178,21 @@ export default function Consumption({ ctx }) {
             ]}
             rows={src}
           />
+          {/* 4. Cost breakdown：更多成本分析，跳转至 TokenHub 进一步查看。
+              链接落在「tokenhub」这个词上，不做成按钮 —— 它是一句注释里的
+              外链，不是本页的操作。 */}
+          <div style={{ padding: "12px var(--th-card-pad)", borderTop: "1px solid var(--color-divider)" }}>
+            <span style={{ fontSize: "var(--th-text-xs)", color: "var(--color-fg-muted)", lineHeight: 1.7 }}>
+              Cost breakdown：更多成本分析，跳转至{" "}
+              <a href="https://tokenhub.infplacex.com/console" target="_blank" rel="noopener noreferrer"
+                 style={{ color: "var(--color-link)", fontWeight: 500 }}>
+                tokenhub
+                <i className="ri-external-link-line" aria-hidden="true"
+                   style={{ fontSize: 12, marginLeft: 3, verticalAlign: "baseline" }} />
+              </a>{" "}
+              进一步查看。
+            </span>
+          </div>
         </Card>
       )}
     </Section>

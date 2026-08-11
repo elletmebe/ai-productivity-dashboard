@@ -113,9 +113,6 @@ export default function AgentUsage({ ctx }) {
               yFormat={(v) => nf(v)}
               refLine={{ value: turnsMean, label: `均值 ${nf(Math.round(turnsMean))}` }}
             />
-            <ChartNote>
-              {`日均 ${nf(Math.round(turnsMean))} 轮，周末回落至工作日约 ${((mean(turns.filter(d=>d.weekend))/mean(turns.filter(d=>!d.weekend)))*100).toFixed(0)}%，节奏跟随工作日。`}
-            </ChartNote>
           </Card>
         </div>
 
@@ -136,18 +133,18 @@ export default function AgentUsage({ ctx }) {
               yFormat={(v) => nf(v)}
               refLine={{ value: commitMean, label: `均值 ${nf(Math.round(commitMean))}` }}
             />
-            <ChartNote>
-              {`日均 ${nf(Math.round(commitMean))} 次，曲线形态与对话轮次一致，可直接比涨幅。`}
-            </ChartNote>
           </Card>
         </div>
       </div>
 
-      {/* ── 使用趋势分析：两条趋势的交叉验证（PRD 标黄原句）── */}
-      <ChartNote tone={outpaced ? "warning" : "success"}>
+      {/* ── 使用趋势分析 ──
+          两张图共用这一条结论，图内不再各自加注释：单看任一条曲线都得不出
+          判断，「用得多」还是「产出强」只能由两者涨幅之差读出来。
+          文案取 PRD 标黄原句，涨幅从同一份数据现算，两支会随数据自动翻面。 */}
+      <ChartNote label="使用趋势分析" tone={outpaced ? "warning" : "success"}>
         {outpaced
-          ? `轮次涨幅 ${turnsGrowth.toFixed(1)}% 高于 Commit ${commitGrowth.toFixed(1)}%：AI 用得更频繁，产出效率没跟上。`
-          : `Commit 涨幅 ${commitGrowth.toFixed(1)}% 高于轮次 ${turnsGrowth.toFixed(1)}%：AI 使用效能提升，产能显著扩张。`}
+          ? `平均对话轮次涨幅 ${turnsGrowth.toFixed(1)}% 高于 commit 涨幅 ${commitGrowth.toFixed(1)}%，AI 使用更加频繁但产出效率没跟上。`
+          : `commit 涨幅 ${commitGrowth.toFixed(1)}% 高于对话轮次涨幅 ${turnsGrowth.toFixed(1)}%，AI 使用效能大幅提升、产能显著扩张。`}
       </ChartNote>
 
       {/* ── InfCode 使用分析 ── */}
